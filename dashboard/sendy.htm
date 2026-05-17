@@ -292,6 +292,11 @@
 	.tl-row__from { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	.tl-row__email { font-weight: 400; color: var(--mute-2); font-size: 11px; }
 	.tl-row__time { font-size: 10px; color: var(--mute); margin-top: 1px; }
+	.age-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; letter-spacing: 0.03em; margin-left: 6px; }
+	.age-badge--fresh   { background: var(--border); color: var(--mute); }
+	.age-badge--nudge   { background: var(--amber-light); color: #92400e; }
+	.age-badge--stale   { background: #fed7aa; color: #9a3412; }
+	.age-badge--overdue { background: var(--rose-light); color: var(--rose); }
 	.tl-row__tag { font-family: var(--font-ui); font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
 	.tl-row__tag--in { background: var(--bg-2); color: var(--ink-3); }
 	.tl-row__tag--auto { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
@@ -593,12 +598,25 @@ function initials(name, email) {
 }
 function colorFor(seed) { let h = 0; for (let i=0;i<(seed||'').length;i++) h = (h*31 + seed.charCodeAt(i)) >>> 0; return AVATAR_COLORS[h % AVATAR_COLORS.length]; }
 function relTime(date) {
-	const d = (Date.now() - date.getTime()) / 1000;
-	if (d < 60) return 'just now';
-	if (d < 3600) return Math.floor(d/60) + 'm';
-	if (d < 86400) return Math.floor(d/3600) + 'h';
-	if (d < 604800) return Math.floor(d/86400) + 'd';
+	const now = new Date();
+	const tod = date.toDateString() === now.toDateString();
+	const yest = date.toDateString() === new Date(now - 86400000).toDateString();
+	const thisWeek = (now - date) < 6 * 86400000;
+	if (tod) return date.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+	if (yest) return 'Yesterday';
+	if (thisWeek) return date.toLocaleDateString('en-US', {weekday:'short'});
 	return date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
+
+function agingBadge(date, status) {
+	if (!date || status === 'sent') return '';
+	const mins = (Date.now() - new Date(date).getTime()) / 60000;
+	let cls, label;
+	if (mins < 60)   { cls = 'age-badge--fresh';   label = Math.max(1, Math.round(mins)) + 'm'; }
+	else if (mins < 240)  { cls = 'age-badge--nudge';   label = Math.round(mins/60) + 'h'; }
+	else if (mins < 1440) { cls = 'age-badge--stale';   label = Math.round(mins/60) + 'h'; }
+	else                  { cls = 'age-badge--overdue'; label = Math.round(mins/1440) + 'd'; }
+	return `<span class="age-badge ${cls}" title="Waiting ${label}">${label}</span>`;
 }
 function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function setConn(s, msg) { const el = document.getElementById('conn'); el.className = 'conn conn--' + s; document.getElementById('conn-text').textContent = msg; }
@@ -737,6 +755,16 @@ function filteredThreads() {
 			if (ca === undefined) return 1;
 			if (cb === undefined) return -1;
 			return ca - cb;
+		});
+	} else {
+		// Urgency sort: escalated first, then unsent by oldest inbound (most overdue), then sent by newest
+		const STATUS_PRI = { escalated: 0, review: 1, ready: 1, new: 1, sent: 2 };
+		list = [...list].sort((a, b) => {
+			const pa = STATUS_PRI[a.status] ?? 3;
+			const pb = STATUS_PRI[b.status] ?? 3;
+			if (pa !== pb) return pa - pb;
+			if (pa <= 1) return a.last_inbound_at - b.last_inbound_at; // oldest waiting = most urgent
+			return (b.last_outbound_at || b.updated_at) - (a.last_outbound_at || a.updated_at); // newest sent first
 		});
 	}
 	return list;
@@ -1134,7 +1162,7 @@ async function renderDetail() {
 			</div>
 		</div>
 		<div class="detail-header__date">
-			${t.last_inbound_at.toLocaleString('en-US', {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
+			${t.last_inbound_at.toLocaleString('en-US', {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}${agingBadge(t.last_inbound_at, t.status)}
 			<button class="detail-header__menu-btn" type="button" id="detail-menu-btn" title="More actions" aria-label="More actions">
 				<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
 			</button>
