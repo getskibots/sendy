@@ -549,7 +549,7 @@ async function processEmail(bucket, key) {
 				toEmail: guestEmail,
 				toName: guestName,
 				subject: draft.suggested_subject || ('Re: ' + subject),
-				bodyText: draft.suggested_reply,
+				bodyText: appendQuotedReply(draft.suggested_reply, bodyText, guestEmail, new Date().toISOString()),
 				inReplyTo: messageId,
 				referencesHeader: [...refs, messageId].filter(Boolean).join(' '),
 				sentBy: 'auto:lambda',
@@ -1196,6 +1196,24 @@ function jsonResponse(statusCode, body) {
 	};
 }
 
+// ============ Quote helper ============
+
+// Appends the guest's original message below the reply in standard email format.
+// Output: reply + blank line + attribution line + blank line + quoted body.
+function appendQuotedReply(replyBody, originalBody, fromEmail, whenIso) {
+	if (!originalBody || !originalBody.trim()) return replyBody;
+	const when = whenIso ? new Date(whenIso) : new Date();
+	const dateStr = when.toLocaleString('en-US', {
+		timeZone: 'America/Denver',
+		weekday: 'short', month: 'short', day: 'numeric',
+		year: 'numeric', hour: 'numeric', minute: '2-digit',
+		timeZoneName: 'short',
+	});
+	const attribution = `On ${dateStr}, ${fromEmail} wrote:`;
+	const quoted = originalBody.trim().split('\n').map(l => '> ' + l).join('\n');
+	return `${replyBody.trimEnd()}\r\n\r\n${attribution}\r\n\r\n${quoted}`;
+}
+
 // ============ SES Sending ============
 
 // Look up the auto_send_enabled flag from Supabase system_settings table.
@@ -1463,7 +1481,7 @@ exports.sendReply = async (event) => {
 			toEmail: thread.guest_email,
 			toName: thread.guest_name,
 			subject,
-			bodyText,
+			bodyText: appendQuotedReply(bodyText, thread.body_text, thread.guest_email, thread.last_inbound_at),
 			inReplyTo,
 			referencesHeader,
 			sentBy,
