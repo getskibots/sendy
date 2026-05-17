@@ -1,0 +1,13 @@
+{
+  "name": "gsb-ai-inbox-lambda",
+  "version": "1.0.0",
+  "description": "Sendy inbound email parser and AI drafter — AWS Lambda",
+  "main": "index.js",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@aws-sdk/client-s3": "*",
+    "@aws-sdk/client-sesv2": "*",
+    "@supabase/supabase-js": "*",
+    "mailparser": "*"
+  }
+}
