@@ -144,7 +144,11 @@
 	.search-input input { width: 100%; padding: 9px 12px 9px 32px; font-family: var(--font-ui); font-size: 13px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); }
 	.search-input input:focus { outline: none; border-color: var(--crimson); background: #fff; }
 	.search-input svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; stroke: var(--mute); stroke-width: 2; fill: none; }
-	.list-rows { flex: 1; overflow-y: auto; }
+	.list-rows { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
+	.list-rows::-webkit-scrollbar { width: 4px; }
+	.list-rows::-webkit-scrollbar-track { background: transparent; }
+	.list-rows::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+	.list-rows::-webkit-scrollbar-thumb:hover { background: var(--mute-2); }
 	.list-footer { padding: 8px 14px; border-top: 1px solid var(--border); background: var(--bg-2); }
 	.list-footer__trash-btn { background: none; border: none; cursor: pointer; font-family: var(--font-ui); font-size: 11px; font-weight: 600; color: var(--mute); display: inline-flex; align-items: center; gap: 6px; padding: 4px 0; }
 	.list-footer__trash-btn:hover { color: var(--ink-2); }
