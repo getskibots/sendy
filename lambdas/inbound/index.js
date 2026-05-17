@@ -665,6 +665,7 @@ async function findOrCreateThread(t) {
 			guest_email: t.guest_email,
 			guest_name: t.guest_name,
 			status: 'new',
+			message_id: t.message_id,
 			raw_s3_key: t.raw_s3_key,
 			in_reply_to: t.in_reply_to,
 			ref_header: t.ref_header,
