@@ -1,0 +1,1839 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sendy — AI Email Platform · Get Ski Bots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+	:root {
+		--crimson: #8b1d1d; --crimson-dark: #6f1717; --crimson-50: #fdf2f2;
+		--ink: #1a1a1a; --ink-2: #2a2a2a; --ink-3: #4a4a4a;
+		--mute: #6b7280; --mute-2: #9ca3af;
+		--bg: #eef4fa; --bg-2: #f8fafc;
+		--border: #e5e7eb; --border-2: #d4d4d8;
+		--sidebar-bg: #2282bf; --sidebar-hover: #1e75aa; --sidebar-active: #1e75aa; --sidebar-text: #ffffff; --sidebar-text-muted: #cfe3f1;
+		--blue: #3b82f6; --blue-light: #dbeafe; --blue-active: #2563eb;
+		--green: #10b981; --green-light: #d1fae5;
+		--amber: #f59e0b; --amber-light: #fef3c7;
+		--rose: #e11d48; --rose-light: #ffe4e6;
+		--indigo-light: #e0e7ff;
+		--font-display: 'Fraunces', Georgia, serif;
+		--font-ui: 'Inter Tight', system-ui, -apple-system, sans-serif;
+		--font-mono: 'JetBrains Mono', 'Courier New', monospace;
+	}
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+	html, body { height: 100%; font-family: var(--font-ui); color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+	.app { display: grid; grid-template-columns: 96px 1fr; min-height: 100vh; }
+
+	.sidebar { background: var(--sidebar-bg); padding: 18px 0 12px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+	.sidebar::-webkit-scrollbar { width: 0; }
+	.sidebar__logo { padding: 0 8px 18px; display: flex; flex-direction: column; align-items: center; margin-bottom: 6px; }
+	.sidebar__logo-img { width: 72px; height: auto; display: block; }
+	.sidebar__nav { list-style: none; display: flex; flex-direction: column; gap: 0; padding: 0 8px; }
+	.sidebar__item { position: relative; }
+	.sidebar__link { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 14px 4px; border-radius: 10px; text-decoration: none; color: var(--sidebar-text); cursor: pointer; transition: background 0.15s; }
+	.sidebar__link:hover { background: var(--sidebar-hover); color: #fff; }
+	.sidebar__link--child-active, .sidebar__link--active { color: #fff; background: var(--sidebar-active); }
+	.sidebar__icon { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+	.sidebar__icon svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.6; fill: none; }
+	.sidebar__label { font-size: 11px; font-weight: 500; line-height: 1.1; text-align: center; letter-spacing: 0.01em; }
+	.sidebar__submenu { display: none; position: absolute; left: calc(100% + 4px); top: 0; background: var(--sidebar-bg); border-radius: 10px; padding: 6px; min-width: 200px; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+	.sidebar__item:hover .sidebar__submenu, .sidebar__item--expanded .sidebar__submenu { display: block; }
+	.sidebar__subitem { display: block; padding: 9px 14px; font-size: 13px; font-weight: 500; color: var(--sidebar-text); text-decoration: none; border-radius: 7px; white-space: nowrap; }
+	.sidebar__subitem:hover { background: var(--sidebar-hover); color: #fff; }
+	.sidebar__subitem--active { background: var(--crimson); color: #fff; }
+	.sidebar__badge { position: absolute; top: 6px; right: 14px; background: var(--crimson); color: #fff; font-size: 10px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+
+	.main { display: flex; flex-direction: column; min-width: 0; }
+	.topbar { background: #fff; border-bottom: 1px solid var(--border); padding: 10px 20px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; height: 56px; }
+	.topbar__home { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+	.topbar__resort { justify-self: center; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+	.topbar__active-pill { background: #d1fae5; color: #065f46; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 4px; }
+	.topbar__right { display: flex; align-items: center; gap: 8px; }
+	.btn-test { font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--blue-active); background: #fff; color: var(--blue-active); cursor: pointer; }
+	.btn-test--solid { background: var(--blue-active); color: #fff; }
+	.topbar__user { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; }
+	.topbar__avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--crimson), var(--crimson-dark)); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+	.topbar__user-name { font-size: 13px; font-weight: 500; }
+
+	.page { flex: 1; padding: 24px 28px 40px; min-width: 0; }
+	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+	.page-title { font-family: var(--font-display); font-weight: 600; font-size: 32px; color: var(--ink); letter-spacing: -0.01em; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+	.page-title__brand { font-weight: 700; }
+	.page-title__sep { color: var(--mute-2); font-weight: 400; margin: 0 -6px; }
+	.page-title__sub { font-weight: 400; color: var(--ink-2); }
+	.conn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+	.conn--live { background: var(--green-light); color: #065f46; }
+	.conn--connecting { background: var(--amber-light); color: #92400e; }
+	.conn--error { background: var(--rose-light); color: #9f1239; }
+	.conn__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.5s ease-in-out infinite; }
+	@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+	.date-pills { display: inline-flex; background: #fff; border-radius: 8px; padding: 3px; gap: 2px; border: 1px solid var(--border); }
+	.date-pill { font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px; color: var(--ink-3); cursor: pointer; border: none; background: transparent; font-family: var(--font-ui); }
+	.date-pill--active { background: var(--blue-active); color: #fff; }
+	.page-subtitle { font-family: var(--font-display); font-weight: 500; font-size: 18px; color: var(--ink-2); margin: 4px 0 18px; }
+
+	/* Collapsible performance drawer — closed by default, expands to KPI strip */
+	/* Inbox overview — always-open status + performance strip */
+	.overview { margin-bottom: 14px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-family: var(--font-ui); overflow: hidden; }
+	.overview__header { padding: 10px 16px; display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--border); background: var(--bg-2); }
+	.overview__title { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--ink); margin: 0; letter-spacing: -0.01em; }
+	.overview__sub { font-size: 11px; color: var(--mute); font-weight: 500; }
+	.overview__body { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; padding: 0; }
+	.perf-stat { padding: 14px 14px; border-right: 1px solid var(--border); background: #fff; border-top: none; border-bottom: none; border-left: none; cursor: pointer; text-align: left; font-family: var(--font-ui); position: relative; transition: background 0.12s ease; }
+	.perf-stat:last-child { border-right: none; }
+	.perf-stat:hover { background: var(--bg-2); }
+	.perf-stat:focus { outline: none; }
+	.perf-stat:focus-visible { box-shadow: inset 0 0 0 2px var(--crimson); }
+	.perf-stat.is-active { background: var(--crimson-50); box-shadow: inset 0 -3px 0 var(--crimson); }
+	.perf-stat__label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mute); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+	/* Pulsing dot on Escalations card when count > 0 */
+	.perf-stat__pulse { display: none; width: 6px; height: 6px; border-radius: 50%; background: var(--rose); position: relative; flex-shrink: 0; }
+	.perf-stat__pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--rose); animation: list-tab-pulse 1.8s ease-out infinite; }
+	.perf-stat.has-urgency .perf-stat__pulse { display: inline-block; }
+	/* Workload card flare-ups: only visible when count > 0, calm when zero */
+	.perf-stat--drafts.has-work:not(.is-active) { background: #fffbeb; }
+	.perf-stat--drafts.has-work:not(.is-active) .perf-stat__label { color: #b45309; }
+	.perf-stat--drafts.has-work:not(.is-active) .perf-stat__num { color: #92400e; }
+	.perf-stat--escalated.has-urgency:not(.is-active) { background: #fef2f2; }
+	.perf-stat--escalated.has-urgency:not(.is-active) .perf-stat__label { color: var(--rose); }
+	.perf-stat--escalated.has-urgency:not(.is-active) .perf-stat__num { color: var(--rose); }
+	.perf-stat__val { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; line-height: 1.1; display: flex; align-items: baseline; gap: 8px; }
+	.perf-stat__num { font-family: var(--font-display); }
+	.perf-stat__pct { font-family: var(--font-ui); font-size: 12px; font-weight: 500; color: var(--mute); }
+	/* Auto-send slider toggle */
+	.autosend-wrap { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink-2); margin-left: 12px; vertical-align: middle; }
+	.autosend-wrap__label { letter-spacing: 0.01em; user-select: none; }
+	.autosend-wrap__state { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: #e5e7eb; color: var(--ink-3); transition: all 0.2s ease; }
+	.autosend-wrap__state--on { background: var(--green-light); color: #065f46; }
+	.autosend-switch { position: relative; display: inline-block; width: 38px; height: 22px; flex-shrink: 0; }
+	.autosend-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+	.autosend-switch__track { position: absolute; inset: 0; background: #cbd5e1; border-radius: 999px; cursor: pointer; transition: background 0.2s ease; }
+	.autosend-switch__track::before { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #ffffff; border-radius: 50%; transition: transform 0.2s ease, box-shadow 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+	.autosend-switch input:checked + .autosend-switch__track { background: var(--green); }
+	.autosend-switch input:checked + .autosend-switch__track::before { transform: translateX(16px); }
+	.autosend-switch__track:hover { filter: brightness(0.97); }
+
+	/* Enhanced list tabs (color-coded counts + urgency pulse on escalated) */
+	.list-tabs { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+	.list-tab { padding: 5px 11px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; color: var(--ink-3); background: transparent; border: 1px solid transparent; font-family: var(--font-ui); white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+	.list-tab:hover { background: var(--bg-2); }
+	.list-tab--active { background: var(--bg-2); color: var(--ink); border-color: var(--border-2); }
+	.list-tab__count { font-weight: 700; margin-left: 2px; color: var(--mute); }
+	.list-tab--active .list-tab__count { color: var(--crimson); }
+	/* Color-coded counts per status (only when not active — active state takes priority) */
+	.list-tab--drafts:not(.list-tab--active) .list-tab__count { color: #b45309; }
+	.list-tab--sent:not(.list-tab--active) .list-tab__count { color: var(--ink-3); }
+	.list-tab--autosent:not(.list-tab--active) .list-tab__count { color: #92400e; }
+	.list-tab--autosent .list-tab__icon { font-size: 11px; line-height: 1; color: #b45309; }
+	.list-tab--escalated:not(.list-tab--active) .list-tab__count { color: var(--rose); }
+	/* Urgency pulse on Escalated when count > 0 */
+	.list-tab__pulse { display: none; width: 6px; height: 6px; border-radius: 50%; background: var(--rose); position: relative; flex-shrink: 0; }
+	.list-tab__pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--rose); animation: list-tab-pulse 1.8s ease-out infinite; }
+	@keyframes list-tab-pulse { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(2.6); opacity: 0; } }
+	.list-tab--has-urgency .list-tab__pulse { display: inline-block; }
+
+	.inbox { display: grid; grid-template-columns: 380px 1fr; background: #fff; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; min-height: calc(100vh - 280px); }
+	.inbox__list { border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+	.list-search { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); }
+	.search-input { position: relative; }
+	.search-input input { width: 100%; padding: 9px 12px 9px 32px; font-family: var(--font-ui); font-size: 13px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); }
+	.search-input input:focus { outline: none; border-color: var(--crimson); background: #fff; }
+	.search-input svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; stroke: var(--mute); stroke-width: 2; fill: none; }
+	.list-rows { flex: 1; overflow-y: auto; }
+	.list-footer { padding: 8px 14px; border-top: 1px solid var(--border); background: var(--bg-2); }
+	.list-footer__trash-btn { background: none; border: none; cursor: pointer; font-family: var(--font-ui); font-size: 11px; font-weight: 600; color: var(--mute); display: inline-flex; align-items: center; gap: 6px; padding: 4px 0; }
+	.list-footer__trash-btn:hover { color: var(--ink-2); }
+	.list-footer__trash-btn svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 2; fill: none; }
+	.perf-filter-banner { padding: 8px 14px; background: var(--crimson-50); border-bottom: 1px solid var(--border); font-family: var(--font-ui); font-size: 11px; font-weight: 600; color: var(--crimson); display: flex; align-items: center; gap: 8px; }
+	.perf-filter-banner__label { flex: 1; }
+	.perf-filter-banner__clear { background: none; border: none; color: var(--crimson); font-family: var(--font-ui); font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+	.perf-filter-banner__clear:hover { background: rgba(139,29,29,0.1); }
+	.thread-row { display: grid; grid-template-columns: 36px 1fr; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; position: relative; }
+	.thread-row:hover { background: var(--bg-2); }
+	.thread-row.is-active { background: var(--crimson-50); box-shadow: inset 3px 0 0 var(--crimson); }
+	/* Read state — subtle fade after staff has clicked a thread */
+	.thread-row.is-read .thread-row__name,
+	.thread-row.is-read .thread-row__subject { font-weight: 500; color: var(--ink-2); }
+	.thread-row.is-read .thread-row__snippet { color: var(--mute); }
+	/* Sent state — handled, gray, with checkmark icon */
+	.thread-row.is-sent .thread-row__name { font-weight: 400; color: var(--ink-3); }
+	.thread-row.is-sent .thread-row__subject { font-weight: 400; color: var(--ink-3); }
+	.thread-row.is-sent .thread-row__snippet { color: var(--mute); opacity: 0.85; }
+	/* Sent indicator: distinct icon + color for auto-sent vs manually-sent */
+	.thread-row__sent-mark { position: absolute; bottom: 11px; right: 14px; pointer-events: none; font-family: var(--font-ui); }
+	.thread-row__sent-mark--manual { width: 14px; height: 14px; color: var(--green); }
+	.thread-row__sent-mark--manual svg { width: 100%; height: 100%; display: block; }
+	.thread-row__sent-mark--auto { width: 16px; height: 16px; font-size: 13px; line-height: 1; color: #b45309; display: flex; align-items: center; justify-content: center; }
+
+	/* Detail-header sent badge with auto/manual distinction */
+	.sent-badge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-ui); font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 5px; margin-left: 8px; vertical-align: middle; white-space: nowrap; }
+	.sent-badge--auto { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+	.sent-badge--manual { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+	.avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+	.thread-row__body { min-width: 0; }
+	.thread-row__top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+	.thread-row__name { font-size: 12px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.thread-row__time { font-size: 11px; color: var(--mute); flex-shrink: 0; }
+	.thread-row__subject { font-size: 13px; font-weight: 700; color: var(--ink); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.thread-row__snippet { font-size: 11px; color: var(--mute); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+	.thread-row__dot { position: absolute; bottom: 14px; right: 14px; width: 7px; height: 7px; border-radius: 50%; }
+	.thread-row__dot--unread { background: var(--blue-active); }
+	.thread-row__dot--escalated { background: var(--rose); }
+	.thread-row__pill { display: inline-flex; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 5px; }
+	.thread-row__pill--ready { background: var(--green-light); color: #065f46; }
+	.thread-row__pill--review { background: var(--amber-light); color: #92400e; }
+	.thread-row__pill--escalated { background: var(--rose-light); color: #9f1239; }
+	.thread-row__pill--sent { background: #e5e7eb; color: var(--ink-3); }
+	.thread-row__pill--new { background: var(--blue-light); color: #1e3a8a; animation: drafting-pulse 1.6s ease-in-out infinite; }
+	@keyframes drafting-pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.55; }
+	}
+
+	.inbox__detail { display: flex; flex-direction: column; min-width: 0; }
+	.detail-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--mute); font-size: 13px; flex-direction: column; gap: 12px; padding: 40px; text-align: center; }
+	.detail-empty svg { width: 40px; height: 40px; stroke: var(--mute-2); stroke-width: 1.5; fill: none; }
+	.detail-empty__hint { font-size: 12px; color: var(--mute-2); max-width: 320px; line-height: 1.6; }
+	.detail-empty__cmd { font-family: var(--font-mono); font-size: 11px; background: var(--bg-2); padding: 8px 12px; border-radius: 6px; color: var(--crimson); border: 1px solid var(--border); }
+
+	/* Celebratory empty state — shown when the inbox is fully empty (zero threads). */
+	/* Rule-of-thirds positioning: anchored ~33% from top of the detail pane. */
+	.detail-empty--celebrate { justify-content: flex-start; padding-top: 12vh; padding-bottom: 40px; gap: 20px; }
+	.detail-empty--celebrate .detail-empty__icon { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); display: flex; align-items: center; justify-content: center; font-size: 28px; line-height: 1; }
+	.detail-empty--celebrate .detail-empty__headline { font-family: var(--font-display); font-size: 32px; font-weight: 600; color: var(--ink); letter-spacing: -0.02em; line-height: 1.15; margin: 0; }
+	.detail-empty--celebrate .detail-empty__sub { font-family: var(--font-display); font-size: 18px; font-weight: 400; color: var(--ink-2); line-height: 1.45; max-width: 440px; margin: -8px 0 0 0; }
+	.detail-empty--celebrate .detail-empty__divider { width: 60px; height: 1px; background: var(--border-2); margin: 14px 0 6px; }
+	.detail-empty--celebrate .detail-empty__instruction-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mute); margin-bottom: 0; }
+	.detail-empty--celebrate .detail-empty__cmd { font-size: 12px; padding: 9px 14px; }
+	.detail-empty--celebrate .detail-empty__hint { font-size: 12px; color: var(--mute); max-width: 360px; }
+	.detail-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 16px; }
+	.detail-header__left { display: flex; gap: 12px; min-width: 0; }
+	.detail-header__info { min-width: 0; }
+	.detail-header__name { font-size: 15px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+	.detail-header__email { font-size: 12px; color: var(--mute); margin-top: 2px; }
+	.detail-header__to { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+	.detail-header__date { font-size: 12px; color: var(--mute); flex-shrink: 0; position: relative; display: flex; align-items: center; gap: 8px; }
+	.detail-header__menu-btn { background: none; border: 1px solid transparent; border-radius: 6px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--mute); padding: 0; }
+	.detail-header__menu-btn:hover { background: var(--bg-2); color: var(--ink-2); border-color: var(--border); }
+	.detail-header__menu-btn svg { width: 16px; height: 16px; }
+	.detail-header__menu { position: absolute; right: 0; top: calc(100% + 6px); background: #fff; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 200px; z-index: 50; padding: 6px; }
+	.detail-header__menu[hidden] { display: none; }
+	.detail-header__menu-item { width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 6px; border: none; background: none; cursor: pointer; font-family: var(--font-ui); font-size: 13px; color: var(--ink-2); text-align: left; }
+	.detail-header__menu-item:hover { background: var(--bg-2); color: var(--ink); }
+	.detail-header__menu-item svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+	.detail-header__menu-item--danger { color: var(--rose); }
+	.detail-header__menu-item--danger:hover { background: #fef2f2; color: var(--rose); }
+
+	/* Sent-thread state row: "Marked as sent" + Send follow-up button */
+	.sent-state-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; flex-wrap: wrap; }
+	.sent-state-row__label { font-size: 12px; color: var(--green); font-weight: 600; }
+	.action-btn--sm { padding: 7px 12px !important; font-size: 12px !important; }
+
+	/* Follow-up composer — inline below the sent draft */
+	.followup-composer { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); font-family: var(--font-ui); }
+	.followup-composer__header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+	.followup-composer__title { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--ink); }
+	.followup-composer__hint { font-size: 11px; color: var(--mute); margin-left: auto; }
+	.followup-composer__field { margin-bottom: 12px; }
+	.followup-composer__label { display: block; font-size: 10px; font-weight: 700; color: var(--mute); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px; }
+	.followup-composer__input, .followup-composer__textarea { width: 100%; padding: 10px 12px; font-family: var(--font-ui); font-size: 13px; border: 1px solid var(--border-2); border-radius: 7px; background: #fff; color: var(--ink); box-sizing: border-box; }
+	.followup-composer__textarea { min-height: 150px; resize: vertical; line-height: 1.6; }
+	.followup-composer__actions { display: flex; gap: 8px; justify-content: flex-end; }
+	.detail-body { flex: 1; overflow-y: auto; padding: 18px 24px 24px; }
+
+	.ai-banner { border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 18px; background: linear-gradient(95deg, var(--crimson-50), #ffeaea, var(--crimson-50)); border: 1px solid #f7d4d4; }
+	.ai-banner__spark { width: 16px; height: 16px; flex-shrink: 0; }
+	.ai-banner__spark path { fill: var(--crimson); }
+	.ai-banner__text { color: var(--ink-2); }
+	.ai-banner__text strong { color: var(--crimson); font-weight: 700; }
+	.ai-banner--blocked { background: linear-gradient(95deg, #fff1f2, #ffe4e6, #fff1f2); border-color: #fda4af; }
+	.ai-banner--blocked .ai-banner__spark path { fill: var(--rose); }
+	.ai-banner--blocked .ai-banner__text strong { color: var(--rose); }
+	.ai-banner--low { background: linear-gradient(95deg, #fff7ed, #ffedd5, #fff7ed); border-color: #fdba74; }
+	.ai-banner--low .ai-banner__spark path { fill: #c2410c; }
+	.ai-banner--low .ai-banner__text strong { color: #c2410c; }
+
+	.guest-msg { margin-bottom: 22px; }
+	.guest-msg__label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mute); margin-bottom: 8px; }
+	.guest-msg__subject { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink); margin-bottom: 12px; letter-spacing: -0.01em; }
+	.guest-msg__body { font-size: 14px; color: var(--ink-2); line-height: 1.65; white-space: pre-wrap; }
+
+	/* "Replying to ↓" connector — sits between the AI draft and the timeline below */
+	.replying-to-connector { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 6px 0 14px; padding: 8px; font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+	.replying-to-connector__arrow { width: 14px; height: 14px; color: var(--crimson); animation: replying-arrow-bounce 1.8s ease-in-out infinite; }
+	@keyframes replying-arrow-bounce {
+		0%, 100% { transform: translateY(0); opacity: 0.6; }
+		50% { transform: translateY(3px); opacity: 1; }
+	}
+	/* Thread timeline — chronological history of inbound + outbound messages */
+	.thread-timeline { margin-bottom: 22px; }
+	.thread-timeline__header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mute); margin-bottom: 10px; display: flex; align-items: baseline; gap: 8px; }
+	.thread-timeline__count { font-weight: 500; color: var(--mute-2); text-transform: none; letter-spacing: 0; font-size: 11px; }
+	.tl-row { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: #fff; overflow: hidden; }
+	.tl-row__summary { cursor: pointer; list-style: none; padding: 10px 12px; display: flex; align-items: center; gap: 10px; user-select: none; }
+	.tl-row__summary::-webkit-details-marker { display: none; }
+	.tl-row__summary:hover { background: var(--bg-2); }
+	.tl-row[open] .tl-row__summary { border-bottom: 1px solid var(--border); }
+	.tl-row[open] .tl-row__preview { display: none; }
+	.tl-row__header { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+	.tl-avatar { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+	.tl-avatar--auto { background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%); color: #fff; font-size: 13px; }
+	.tl-avatar--manual { background: linear-gradient(135deg, #34d399 0%, #059669 100%); color: #fff; font-size: 14px; }
+	.tl-row__meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+	.tl-row__from { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.tl-row__email { font-weight: 400; color: var(--mute-2); font-size: 11px; }
+	.tl-row__time { font-size: 10px; color: var(--mute); margin-top: 1px; }
+	.tl-row__tag { font-family: var(--font-ui); font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+	.tl-row__tag--in { background: var(--bg-2); color: var(--ink-3); }
+	.tl-row__tag--auto { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+	.tl-row__tag--manual { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+	.tl-row__preview { font-size: 12px; color: var(--mute); margin-left: 10px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+	.tl-row__body { padding: 12px 14px 14px; font-size: 13.5px; color: var(--ink-2); line-height: 1.65; white-space: pre-wrap; word-wrap: break-word; }
+	.tl-row__body--empty { color: var(--mute); font-style: italic; }
+	.tl-row__raw { margin: 0 14px 12px; }
+	.tl-row__raw summary { cursor: pointer; font-size: 11px; color: var(--mute); user-select: none; padding: 6px 0; }
+	.tl-row__raw-body { margin-top: 8px; padding: 10px; background: var(--bg-2); border-radius: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); max-height: 280px; overflow-y: auto; white-space: pre-wrap; }
+	/* Visual differentiation: inbound = neutral border, outbound auto = amber wash, outbound manual = green wash */
+	.tl-row--in { border-left: 3px solid var(--border-2); }
+	.tl-row--auto { border-left: 3px solid #f59e0b; background: linear-gradient(to right, #fffbeb 0%, #fff 30%); }
+	.tl-row--manual { border-left: 3px solid #10b981; background: linear-gradient(to right, #f0fdf4 0%, #fff 30%); }
+
+	.draft-section { background: #fafafa; border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+	.draft-section__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+	.draft-section__title { font-family: var(--font-display); font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+	.draft-section__title svg { width: 14px; height: 14px; fill: var(--crimson); }
+	.draft-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+	.draft-chip { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+	.draft-chip--cat { background: var(--indigo-light); color: #3730a3; }
+	.draft-chip--conf { background: var(--green-light); color: #065f46; }
+	.draft-chip--conf-low { background: var(--amber-light); color: #92400e; }
+	.draft-chip--conf-block { background: var(--rose-light); color: #9f1239; }
+	.draft-chip--human { background: var(--rose-light); color: #9f1239; }
+	.internal-notes { background: #fef9e7; border: 1px solid #fde68a; border-radius: 8px; padding: 9px 12px; font-size: 12px; color: #78350f; margin-bottom: 14px; display: flex; gap: 8px; }
+	.internal-notes svg { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; stroke: #92400e; fill: none; stroke-width: 1.75; }
+	.draft-field { margin-bottom: 12px; position: relative; }
+	.draft-field__label { display: block; font-size: 10px; font-weight: 700; color: var(--mute); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 5px; }
+	.draft-field__input { width: 100%; padding: 9px 12px; font-family: var(--font-ui); font-size: 13px; border: 1px solid var(--border-2); border-radius: 7px; background: #fff; font-weight: 500; }
+	.draft-field__textarea { width: 100%; padding: 12px 14px; font-family: var(--font-ui); font-size: 13.5px; line-height: 1.65; border: 1px solid var(--border-2); border-radius: 7px; background: #fff; min-height: 240px; resize: vertical; }
+	.draft-field__input:focus, .draft-field__textarea:focus { outline: none; border-color: var(--crimson); box-shadow: 0 0 0 3px rgba(139,29,29,0.08); }
+	.draft-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+	.action-btn { font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 7px; border: 1px solid; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); }
+	.action-btn svg { width: 14px; height: 14px; stroke-width: 2; fill: none; stroke: currentColor; }
+	.action-btn--primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+	.action-btn--primary:hover { background: var(--ink-2); }
+	.action-btn--secondary { background: #fff; color: var(--ink-2); border-color: var(--border-2); }
+	.action-btn--secondary:hover { background: var(--bg-2); }
+	.action-btn--danger { background: #fff; color: var(--rose); border-color: #fda4af; }
+	.action-btn--danger:hover { background: var(--rose-light); }
+	.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+	.draft-blocked-banner { background: var(--rose-light); border: 1px dashed var(--rose); border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #9f1239; margin: 12px 0; display: flex; gap: 10px; align-items: center; }
+	.draft-blocked-banner svg { width: 16px; height: 16px; stroke: var(--rose); fill: none; stroke-width: 1.75; flex-shrink: 0; }
+
+	.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+	/* Regen loading overlay */
+	.draft-section.is-regenerating { position: relative; }
+	.draft-section.is-regenerating .draft-meta,
+	.draft-section.is-regenerating .draft-actions,
+	.draft-section.is-regenerating .internal-notes,
+	.draft-section.is-regenerating #edit-subject { opacity: 0.4; pointer-events: none; filter: blur(0.4px); transition: opacity 0.3s ease, filter 0.3s ease; }
+	.draft-section.is-regenerating .draft-section__title svg { animation: regen-sparkle-pulse 1.4s ease-in-out infinite; transform-origin: center; }
+	@keyframes regen-sparkle-pulse {
+		0%, 100% { transform: scale(1) rotate(0deg); fill: var(--crimson); }
+		50% { transform: scale(1.25) rotate(20deg); fill: #d4a05a; }
+	}
+	/* Overlay covers the reply textarea exactly */
+	.regen-overlay {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 24px 32px;
+		background: rgba(255, 255, 255, 0.92);
+		backdrop-filter: blur(2px);
+		-webkit-backdrop-filter: blur(2px);
+		border-radius: 7px;
+		pointer-events: none;
+		z-index: 5;
+		opacity: 0;
+		transition: opacity 0.25s ease;
+	}
+	.regen-overlay.is-visible { opacity: 1; }
+	.regen-overlay__status {
+		font-family: var(--font-display);
+		font-size: 16px;
+		font-weight: 500;
+		color: var(--ink);
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 18px;
+		text-align: center;
+	}
+	.regen-overlay__status::before {
+		content: '';
+		display: inline-block;
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		background: var(--crimson);
+		animation: regen-dot-pulse 1.2s ease-in-out infinite;
+		flex-shrink: 0;
+	}
+	@keyframes regen-dot-pulse {
+		0%, 100% { opacity: 0.35; transform: scale(1); }
+		50% { opacity: 1; transform: scale(1.5); }
+	}
+	.regen-skel-stack {
+		width: 100%;
+		max-width: 460px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 9px;
+	}
+	.regen-skel {
+		background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 25%, #e5e7eb 50%, #e5e7eb 100%);
+		background-size: 200% 100%;
+		border-radius: 5px;
+		animation: regen-shimmer 1.4s ease-in-out infinite;
+	}
+	@keyframes regen-shimmer {
+		0% { background-position: 200% 0; }
+		100% { background-position: -200% 0; }
+	}
+	.regen-skel--line { height: 11px; }
+	.regen-skel--line-short { width: 50%; }
+	.regen-skel--line-mid { width: 75%; }
+	.regen-skel--line-long { width: 100%; }
+	@keyframes spin { to { transform: rotate(360deg); } }
+
+	.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: #fff; padding: 11px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.25s; pointer-events: none; z-index: 1000; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+	.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+	.toast svg { width: 14px; height: 14px; stroke: var(--green); fill: none; stroke-width: 2.5; }
+	.toast--error svg { stroke: var(--rose); }
+
+	.config-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+	.config-modal { background: #fff; border-radius: 14px; padding: 28px; max-width: 520px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+	.config-modal h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin-bottom: 6px; }
+	.config-modal p { font-size: 13px; color: var(--mute); margin-bottom: 18px; line-height: 1.6; }
+	.config-modal label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); margin-bottom: 6px; margin-top: 14px; }
+	.config-modal input { width: 100%; padding: 10px 12px; font-family: var(--font-mono); font-size: 12px; border: 1px solid var(--border-2); border-radius: 7px; background: var(--bg-2); }
+	.config-modal__hint { font-size: 11px; color: var(--mute); margin-top: 4px; line-height: 1.5; }
+	.config-modal__actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+	<aside class="sidebar">
+		<div class="sidebar__logo">
+			<img src="data:image/png;base64,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wYMHyePxwO12IykpiWstQALQ6rj9iBUdHW1Y/cuXLydVVREZGQme50FECA8PR+/evZnQqqqqmOA0IRYVFZEkSbBarQgLC2N+lmYWmpubsWjRIpw4cSLgAPRpjrbigQceQGZmJjiOw5133on4+HjSzLrH42E+xKhRowymobGxkQlcE9aJEye4bt264fjx43TXXXdh1qxZGDRoEA0bNoz193K+jx6aOZ45cyYSEhLI4XCgqakJ0dHRaGhogN1uZ4GEyWRim/xEhK5duyIjIwOLFi0iTfubzWZmPW666SZmOaqrq4MuVG3RBwtib775Ztx+++2aW0BFRUUwm81wu91wOBxQFAXx8fEsGDp79mz7tMXhw4eppaWFhauCIBjCdd/QU2fHWQis/wNH+nom/QFULQL1hb5kp72azvd4WWuHXevr66lnz570yCOPsDEWFRX5PXPbtm3snlVVVTRs2DDSpxsudywrKyvL772kvgdR9bLSv3f14MGDfgdLtAJL/SEQURRbrfTMyspiNe1ZWVkB282YMcPvFZf690foU1CCILT612cDqoT77ruPW7RoEQ0dOhTdu3eH1WplqQQtLSDLMsrKyvDee++x67Kzs+H1euFwOJiDDgCXLl1CTEwMTCYTrFYrXC4XVFXF6dOnA3YqNzeXOfrtxeDBg5GcnIzExEQ4HA7Y7XY0NTUhIiICoiiCiCBJEiorK/Hiiy9yf69+WrduHQRBQF1dnd89U1JSuCNHjpDJZILNZkNiYiIOHTqElStXQlXVy2rWLVu2oKSkBG63m6VtNC2lOciSJCEmJgZ1dXU4duwY04pxcXFcQkICDR48GJrPpSU+tWjyzJkzKC8vx4EDB4Karw8//BAlJSUAgFOnTgVss3XrVm7r1q149NFHadiwYSxFRESIiIiAJEmQZRkVFRU4fPhwpyoZCiGEEG5k/B/4G/1cwez6FQAAAABJRU5ErkJggg==" alt="Get Ski Bots" class="sidebar__logo-img">
+		</div>
+		<ul class="sidebar__nav">
+			<li class="sidebar__item"><a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 14l3-3 4 4 5-7"/></svg></span><span class="sidebar__label">Analytics</span></a></li>
+			<li class="sidebar__item"><a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2zM10 22h4"/></svg></span><span class="sidebar__label">Knowledge</span></a></li>
+			<li class="sidebar__item">
+				<a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M16 7l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" fill="currentColor" stroke="none"/></svg></span><span class="sidebar__label">AI Messages</span></a>
+				<div class="sidebar__submenu">
+					<a class="sidebar__subitem" href="#">AI Chat</a>
+					<a class="sidebar__subitem" href="#">AI Voice <span style="opacity:0.5;font-size:11px;">(soon)</span></a>
+				</div>
+			</li>
+			<li class="sidebar__item"><a class="sidebar__link sidebar__link--active" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="16" height="12" rx="2"/><path d="M2.5 8.5l8 5 8-5"/><path d="M19 3l.7 2L22 5.7 19.7 6.4 19 8.7 18.3 6.4 16 5.7l2.3-.7zM21.5 13l.4 1.2 1.1.4-1.1.4-.4 1.2-.4-1.2-1.1-.4 1.1-.4z" fill="currentColor" stroke="none"/></svg></span><span class="sidebar__label">AI Emails</span></a></li>
+			<li class="sidebar__item"><a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M7 17l10-10"/><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><span class="sidebar__label">Flows</span></a></li>
+			<li class="sidebar__item"><a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><path d="M9 3l-1 4-4 1 4 1 1 4 1-4 4-1-4-1zM18 12l-1 3-3 1 3 1 1 3 1-3 3-1-3-1zM6 14l-.5 2-2 .5 2 .5L6 19l.5-2 2-.5-2-.5z"/></svg></span><span class="sidebar__label">Actions</span></a></li>
+			<li class="sidebar__item"><a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><path d="M4 8h6v8H4zM14 6h6v12h-6zM10 12h4"/></svg></span><span class="sidebar__label">Triggers</span></a></li>
+			<li class="sidebar__item"><a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z"/></svg></span><span class="sidebar__label">Support</span></a><span class="sidebar__badge">3</span></li>
+			<li class="sidebar__item"><a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><span class="sidebar__label">Widget</span></a></li>
+			<li class="sidebar__item"><a class="sidebar__link" href="#" id="settings-btn"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><path d="M5 6h14M9 12h10M5 18h14"/><circle cx="7" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg></span><span class="sidebar__label">Settings</span></a></li>
+			<li class="sidebar__item"><a class="sidebar__link" href="#"><span class="sidebar__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 4"/><circle cx="12" cy="17" r="0.5" fill="currentColor" stroke="none"/></svg></span><span class="sidebar__label">Help</span></a></li>
+		</ul>
+	</aside>
+
+	<main class="main">
+		<header class="topbar">
+			<div><span class="topbar__home" style="color:var(--ink);font-weight:600;">AI Emails</span></div>
+			<div class="topbar__resort"><span>Jackson Hole</span><span class="topbar__active-pill">ACTIVE</span></div>
+			<div class="topbar__right">
+				<button class="btn-test">Test AI chat</button>
+				<button class="btn-test btn-test--solid">Test widget</button>
+				<div class="topbar__user"><div class="topbar__avatar">BQ</div><span class="topbar__user-name">Brandon Quinn</span></div>
+			</div>
+		</header>
+
+		<div class="page">
+			<div class="page-header">
+				<div>
+					<h1 class="page-title"><span class="page-title__brand">Sendy</span><span class="page-title__sep"> · </span><span class="page-title__sub">AI Email Platform</span>
+						<span class="conn conn--connecting" id="conn" style="display:none;"><span class="conn__dot"></span><span id="conn-text">Connecting…</span></span>
+					</h1>
+				</div>
+				<div class="date-pills">
+					<button class="date-pill date-pill--active">Last 7 days</button>
+					<button class="date-pill">Last 30 days</button>
+					<button class="date-pill">Custom</button>
+				</div>
+			</div>
+			<div class="page-subtitle">
+				Your AI co-pilot for the inbox. Send it.
+				<span class="autosend-wrap">
+					<span class="autosend-wrap__label">Auto-send</span>
+					<label class="autosend-switch" title="Click to toggle auto-send">
+						<input type="checkbox" id="autosend-toggle">
+						<span class="autosend-switch__track"></span>
+					</label>
+					<span class="autosend-wrap__state" id="autosend-state">OFF</span>
+				</span>
+			</div>
+
+			<section class="overview" id="overview">
+				<header class="overview__header">
+					<h2 class="overview__title">Inbox overview</h2>
+					<span class="overview__sub" id="overview-sub"></span>
+				</header>
+				<div class="overview__body">
+					<button class="perf-stat" type="button" data-perf-filter="drafts"><div class="perf-stat__label">Drafts</div><div class="perf-stat__val" id="perf-drafts">—</div></button>
+					<button class="perf-stat" type="button" data-perf-filter="escalated"><div class="perf-stat__label"><span class="perf-stat__pulse"></span>Escalations</div><div class="perf-stat__val" id="perf-escalated">—</div></button>
+					<button class="perf-stat" type="button" data-perf-filter="auto"><div class="perf-stat__label">Auto-sent</div><div class="perf-stat__val" id="perf-auto">—</div></button>
+					<button class="perf-stat" type="button" data-perf-filter="manual"><div class="perf-stat__label">Manually sent</div><div class="perf-stat__val" id="perf-manual">—</div></button>
+					<button class="perf-stat" type="button" data-perf-filter="confidence"><div class="perf-stat__label">Avg AI confidence</div><div class="perf-stat__val" id="perf-conf">—</div></button>
+					<button class="perf-stat" type="button" data-perf-filter="total"><div class="perf-stat__label">Total</div><div class="perf-stat__val" id="perf-total">—</div></button>
+				</div>
+			</section>
+
+			<section class="inbox">
+				<aside class="inbox__list">
+					<div class="list-search"><div class="search-input">
+						<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+						<input type="search" id="search" placeholder="Search guest, subject, body…">
+					</div></div>
+					<div class="perf-filter-banner" id="perf-filter-banner" style="display:none;"></div>
+					<div class="list-rows" id="rows"></div>
+					<div class="list-footer" id="list-footer" style="display:none;"></div>
+				</aside>
+				<section class="inbox__detail" id="detail">
+					<div class="detail-empty detail-empty--celebrate">
+						<div class="detail-empty__icon">☀️</div>
+						<h2 class="detail-empty__headline">Your inbox is clear.</h2>
+						<p class="detail-empty__sub">You're crushing it. Now send yourself outside.</p>
+					</div>
+				</section>
+			</section>
+		</div>
+	</main>
+</div>
+
+<div class="toast" id="toast"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span id="toast-msg"></span></div>
+
+<div class="config-overlay" id="config-overlay" style="display:none;">
+	<div class="config-modal">
+		<h2>Reconfigure connection</h2>
+		<p>Override the default Supabase + Lambda endpoints. Useful for connecting to a different resort's data. Stored in your browser only.</p>
+		<label>Supabase URL</label>
+		<input type="text" id="config-url" placeholder="https://xxxxx.supabase.co" autocomplete="off">
+		<div class="config-modal__hint">Project Settings → API Keys → Project URL</div>
+		<label>Supabase publishable / anon key</label>
+		<input type="text" id="config-anon" placeholder="sb_publishable_... or eyJ..." autocomplete="off">
+		<div class="config-modal__hint">Project Settings → API Keys → <code>publishable</code> key. Safe to expose in browser.</div>
+		<label>Lambda Function URL (optional)</label>
+		<input type="text" id="config-lambda" placeholder="https://xxxxx.lambda-url.us-east-1.on.aws/" autocomplete="off">
+		<div class="config-modal__hint">Optional. Enables the "Regenerate with AI" button.</div>
+		<div class="config-modal__actions">
+			<button class="action-btn action-btn--danger" id="config-reset" style="margin-right:auto;">Reset to defaults</button>
+			<button class="action-btn action-btn--secondary" id="config-cancel">Cancel</button>
+			<button class="action-btn action-btn--primary" id="config-save">Save &amp; reconnect</button>
+		</div>
+	</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
+<script>
+const CONFIG_KEY = 'gsb_inbox_config_v1';
+const SAFETY = {
+	BLOCKED_CATEGORIES: ['refund_request','complaint','safety_issue','legal_threat','medical_issue','angry_guest'],
+	MIN_CONFIDENCE: 0.85,
+};
+
+// Baked-in defaults. Reconfigure (via settings icon) overrides these in localStorage.
+const DEFAULT_CONFIG = {
+	url: 'https://onvwopfsfhxayjkcveyz.supabase.co',
+	anon_key: 'sb_publishable_Z6Kj33ZRbGnflwo7XHosnw_D3LKZ07j',
+	lambda_url: 'https://sjh3pgd35k2b3zh3seceuceyyi0prrfi.lambda-url.us-east-1.on.aws',
+};
+
+function loadConfig() {
+	try {
+		const override = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null');
+		if (override && override.url && override.anon_key) return override;
+	} catch (e) {}
+	return DEFAULT_CONFIG;
+}
+function saveConfig(c) { localStorage.setItem(CONFIG_KEY, JSON.stringify(c)); }
+function clearConfig() { localStorage.removeItem(CONFIG_KEY); }
+
+const state = { config: null, supabase: null, threads: [], drafts: {}, sendLogs: {}, threadSendLogs: {}, threadInbounds: {}, activeThreadId: null, activeTab: 'all', perfFilter: null, search: '' };
+const AVATAR_COLORS = ['#0ea5e9','#22c55e','#f59e0b','#ec4899','#8b5cf6','#06b6d4','#f97316','#84cc16','#6366f1'];
+
+function initials(name, email) {
+	const src = (name && name.trim()) || (email || '?').split('@')[0];
+	const parts = src.trim().split(/[\s_.\-]+/).filter(Boolean);
+	return ((parts[0]||'')[0] + (parts[1]||'')[0] || parts[0].slice(0,2)).toUpperCase();
+}
+function colorFor(seed) { let h = 0; for (let i=0;i<(seed||'').length;i++) h = (h*31 + seed.charCodeAt(i)) >>> 0; return AVATAR_COLORS[h % AVATAR_COLORS.length]; }
+function relTime(date) {
+	const d = (Date.now() - date.getTime()) / 1000;
+	if (d < 60) return 'just now';
+	if (d < 3600) return Math.floor(d/60) + 'm';
+	if (d < 86400) return Math.floor(d/3600) + 'h';
+	if (d < 604800) return Math.floor(d/86400) + 'd';
+	return date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
+function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function setConn(s, msg) { const el = document.getElementById('conn'); el.className = 'conn conn--' + s; document.getElementById('conn-text').textContent = msg; }
+
+async function fetchThreads() {
+	const { data, error } = await state.supabase.from('threads').select('*').order('updated_at', { ascending: false }).limit(200);
+	if (error) throw error;
+	state.threads = (data || []).map(t => ({
+		...t,
+		last_inbound_at: t.last_inbound_at ? new Date(t.last_inbound_at) : new Date(t.created_at),
+		updated_at: new Date(t.updated_at),
+	}));
+	// Pull latest send_log per sent thread so the inbox can show auto/manual icons
+	await fetchSendLogsForSentThreads();
+	return state.threads;
+}
+async function fetchDrafts(threadId) {
+	const { data, error } = await state.supabase.from('drafts').select('*').eq('thread_id', threadId).order('created_at', { ascending: false }).limit(20);
+	if (error) throw error;
+	state.drafts[threadId] = data || [];
+	return state.drafts[threadId];
+}
+// Fetch ALL sent send_logs for a thread (oldest-first) so we can render the
+// outbound history in the thread timeline.
+async function fetchAllSendLogsForThread(threadId) {
+	const { data, error } = await state.supabase
+		.from('send_logs')
+		.select('id, sent_by, status, created_at, subject, body_text, ses_message_id')
+		.eq('thread_id', threadId)
+		.eq('status', 'sent_via_ses')
+		.order('created_at', { ascending: true });
+	if (error) { console.warn('fetchAllSendLogsForThread failed:', error); return []; }
+	state.threadSendLogs = state.threadSendLogs || {};
+	state.threadSendLogs[threadId] = data || [];
+	return state.threadSendLogs[threadId];
+}
+// Fetch ALL inbound emails for a thread (oldest-first). Phase 2: persists every
+// inbound separately instead of overwriting threads.body_text. Old threads created
+// before migration 005 will have zero rows here, and the timeline falls back to
+// using thread.body_text in that case.
+async function fetchAllInboundsForThread(threadId) {
+	const { data, error } = await state.supabase
+		.from('inbound_messages')
+		.select('id, from_email, from_name, subject, body_text, body_text_raw, message_id, received_at, created_at')
+		.eq('thread_id', threadId)
+		.order('received_at', { ascending: true });
+	if (error) { console.warn('fetchAllInboundsForThread failed:', error); return []; }
+	state.threadInbounds = state.threadInbounds || {};
+	state.threadInbounds[threadId] = data || [];
+	return state.threadInbounds[threadId];
+}
+// Bulk-fetch the latest send_log per sent thread, so the inbox list can show
+// auto-sent vs manually-sent icons without per-row round-trips.
+async function fetchSendLogsForSentThreads() {
+	const sentIds = state.threads.filter(t => t.status === 'sent').map(t => t.id);
+	if (sentIds.length === 0) { state.sendLogs = {}; return; }
+	const { data, error } = await state.supabase
+		.from('send_logs')
+		.select('thread_id, sent_by, status, created_at, ses_message_id')
+		.in('thread_id', sentIds)
+		.eq('status', 'sent_via_ses')
+		.order('created_at', { ascending: false });
+	if (error) { console.warn('fetchSendLogs failed:', error); return; }
+	// Keep the latest log per thread (first row encountered since sorted desc)
+	const latest = {};
+	for (const row of (data || [])) {
+		if (!latest[row.thread_id]) latest[row.thread_id] = row;
+	}
+	state.sendLogs = latest;
+}
+// Bulk-fetch the latest draft per thread, so renderPerf can compute avg confidence
+// and the 'confidence' filter can sort threads by their draft confidence.
+// Only loaded when needed (perfFilter='confidence' OR drawer expanded) to keep idle load light.
+async function fetchLatestDraftPerThread() {
+	const ids = state.threads.map(t => t.id);
+	if (ids.length === 0) return;
+	const { data, error } = await state.supabase
+		.from('drafts')
+		.select('thread_id, confidence, suggested_subject, suggested_reply, category, needs_human, internal_notes, raw_response, created_at, id')
+		.in('thread_id', ids)
+		.order('created_at', { ascending: false });
+	if (error) { console.warn('fetchLatestDraftPerThread failed:', error); return; }
+	// Keep latest per thread without clobbering more-detailed cached drafts
+	for (const row of (data || [])) {
+		if (!state.drafts[row.thread_id] || !state.drafts[row.thread_id][0] || state.drafts[row.thread_id][0].id !== row.id) {
+			// Only update if we don't have this draft cached as the latest
+			if (!state.drafts[row.thread_id]) state.drafts[row.thread_id] = [row];
+			// else: leave existing detailed cache alone — it was loaded by openThread
+		}
+	}
+}
+async function updateThread(id, patch) { const { error } = await state.supabase.from('threads').update(patch).eq('id', id); if (error) throw error; }
+async function updateDraft(id, patch) { const { error } = await state.supabase.from('drafts').update(patch).eq('id', id); if (error) throw error; }
+async function insertFlag(threadId, reason, detail) { const { error } = await state.supabase.from('escalation_flags').insert({ thread_id: threadId, reason, detail, raised_by: 'staff' }); if (error) throw error; }
+async function insertSendLog(threadId, draftId, subject, body) {
+	const { error } = await state.supabase.from('send_logs').insert({ thread_id: threadId, draft_id: draftId, subject, body_text: body, status: 'marked_sent', sent_by: 'Brandon Quinn' });
+	if (error) throw error;
+}
+
+function filteredThreads() {
+	const q = state.search.toLowerCase();
+	let list = state.threads.filter(t => {
+		// Soft-delete: hide deleted threads from all views EXCEPT the explicit 'trash' filter
+		const isDeleted = !!t.deleted_at;
+		if (state.perfFilter === 'trash') {
+			if (!isDeleted) return false;
+		} else if (isDeleted) {
+			return false;
+		}
+		// perfFilter is the sole top-level filter (drives the inbox overview card highlights)
+		const f = state.perfFilter;
+		if (f && f !== 'total' && f !== 'trash') {
+			const log = state.sendLogs[t.id];
+			if (f === 'drafts') {
+				if (!(t.status === 'ready' || t.status === 'review' || t.status === 'new')) return false;
+			} else if (f === 'escalated') {
+				if (t.status !== 'escalated') return false;
+			} else if (f === 'auto') {
+				if (t.status !== 'sent') return false;
+				if (!(log && /^auto:/.test(log.sent_by || ''))) return false;
+			} else if (f === 'manual') {
+				if (t.status !== 'sent') return false;
+				if (!(log && /^manual:/.test(log.sent_by || ''))) return false;
+			}
+			// 'confidence' shows all threads, sort handled below
+		}
+		if (!q) return true;
+		return ((t.guest_name || '') + ' ' + (t.guest_email || '') + ' ' + (t.subject || '') + ' ' + (t.body_text || '')).toLowerCase().includes(q);
+	});
+	// Special sort: 'confidence' filter shows everything sorted weakest-first
+	if (state.perfFilter === 'confidence') {
+		list = [...list].sort((a, b) => {
+			const ca = (state.drafts[a.id] || [])[0]?.confidence;
+			const cb = (state.drafts[b.id] || [])[0]?.confidence;
+			if (ca === undefined && cb === undefined) return 0;
+			if (ca === undefined) return 1;
+			if (cb === undefined) return -1;
+			return ca - cb;
+		});
+	}
+	return list;
+}
+// renderTabs is now a no-op — the inbox tab strip was replaced by the Inbox overview drawer.
+// Kept as a stub so existing call sites (await fetchThreads(); renderTabs(); renderRows(); ...) keep working.
+function renderTabs() { /* now handled by renderPerf via the Inbox overview drawer */ }
+// ============ READ STATE ============
+// Tracks which threads the user has clicked on. Stored in localStorage (per-browser).
+// Migration TODO: move to per-user Supabase table when multi-staff lands.
+const READ_STATE_KEY = 'gsb_inbox_read_v1';
+function loadReadSet() {
+	try { return new Set(JSON.parse(localStorage.getItem(READ_STATE_KEY) || '[]')); }
+	catch { return new Set(); }
+}
+function saveReadSet(set) {
+	try { localStorage.setItem(READ_STATE_KEY, JSON.stringify([...set].slice(-500))); } // cap at 500 entries
+	catch (e) { console.warn('localStorage save failed:', e); }
+}
+function markThreadRead(threadId) {
+	const set = loadReadSet();
+	if (!set.has(threadId)) {
+		set.add(threadId);
+		saveReadSet(set);
+	}
+}
+function isThreadRead(threadId) {
+	return loadReadSet().has(threadId);
+}
+
+function renderRows() {
+	const list = filteredThreads();
+	const readSet = loadReadSet();
+	const html = list.length === 0
+		? '<div style="padding:24px;text-align:center;color:var(--mute);font-size:13px;">No threads match.</div>'
+		: list.map(t => {
+			const snippet = (t.body_text || '').replace(/\n+/g, ' ').slice(0, 120);
+			const pill = t.status==='ready' ? 'ready' : t.status==='escalated' ? 'escalated' : t.status==='sent' ? 'sent' : t.status==='new' ? 'new' : 'review';
+			const pillLabel = t.status === 'ready' ? 'Draft ready' : t.status === 'new' ? 'Drafting…' : t.status;
+			const isSent = t.status === 'sent';
+			const isRead = !isSent && readSet.has(t.id);
+			const dot = !isRead && !isSent && (t.status === 'escalated' ? 'escalated' : (t.status === 'ready' || t.status === 'new' ? 'unread' : ''));
+			const classes = ['thread-row'];
+			if (state.activeThreadId === t.id) classes.push('is-active');
+			if (isSent) classes.push('is-sent');
+			else if (isRead) classes.push('is-read');
+			// Auto vs manual indicator for sent threads
+			const sendLog = isSent ? state.sendLogs[t.id] : null;
+			const isAutoSent = sendLog && /^auto:/.test(sendLog.sent_by || '');
+			let sentIndicator = '';
+			if (isSent) {
+				if (isAutoSent) {
+					sentIndicator = `<div class="thread-row__sent-mark thread-row__sent-mark--auto" title="Auto-sent by AI">⚡</div>`;
+				} else {
+					sentIndicator = `<div class="thread-row__sent-mark thread-row__sent-mark--manual" title="Sent manually"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>`;
+				}
+			}
+			return `<div class="${classes.join(' ')}" data-id="${t.id}">
+				<div class="avatar" style="background:${colorFor(t.guest_email)}">${initials(t.guest_name, t.guest_email)}</div>
+				<div class="thread-row__body">
+					<div class="thread-row__top"><span class="thread-row__name">${esc(t.guest_name || t.guest_email)}</span><span class="thread-row__time">${relTime(t.last_inbound_at)}</span></div>
+					<div class="thread-row__subject">${esc(t.subject)}</div>
+					<div class="thread-row__snippet">${esc(snippet)}</div>
+					<span class="thread-row__pill thread-row__pill--${pill}">${pillLabel}</span>
+				</div>
+				${sentIndicator || (dot ? `<div class="thread-row__dot thread-row__dot--${dot}"></div>` : '')}
+			</div>`;
+		}).join('');
+	document.getElementById('rows').innerHTML = html;
+	document.querySelectorAll('.thread-row').forEach(el => el.addEventListener('click', () => openThread(el.dataset.id)));
+	renderPerfFilterBanner();
+	renderListFooter();
+	renderPerf();
+}
+
+// Footer below the inbox list — shows "View deleted (N)" link when there are
+// soft-deleted threads, OR "Back to inbox" when viewing trash.
+function renderListFooter() {
+	const footer = document.getElementById('list-footer');
+	if (!footer) return;
+	const deletedCount = state.threads.filter(t => !!t.deleted_at).length;
+	if (state.perfFilter === 'trash') {
+		footer.style.display = 'block';
+		footer.innerHTML = `<button class="list-footer__trash-btn" type="button" id="back-to-inbox-btn"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to inbox</button>`;
+		document.getElementById('back-to-inbox-btn').addEventListener('click', () => {
+			state.perfFilter = null;
+			renderRows();
+		});
+	} else if (deletedCount > 0) {
+		footer.style.display = 'block';
+		footer.innerHTML = `<button class="list-footer__trash-btn" type="button" id="view-trash-btn"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>View deleted (${deletedCount})</button>`;
+		document.getElementById('view-trash-btn').addEventListener('click', () => {
+			state.perfFilter = 'trash';
+			state.activeThreadId = null;
+			renderRows();
+			renderDetail();
+		});
+	} else {
+		footer.style.display = 'none';
+	}
+}
+
+function renderPerfFilterBanner() {
+	const banner = document.getElementById('perf-filter-banner');
+	if (!banner) return;
+	if (!state.perfFilter) { banner.style.display = 'none'; return; }
+	const labels = {
+		drafts: 'Showing drafts awaiting review',
+		escalated: 'Showing escalated threads',
+		total: 'Showing all threads',
+		auto: 'Showing auto-sent threads',
+		manual: 'Showing manually-sent threads',
+		confidence: 'All threads sorted by weakest AI confidence first',
+		trash: 'Showing deleted threads',
+	};
+	const label = labels[state.perfFilter] || 'Filtered';
+	banner.style.display = 'flex';
+	banner.innerHTML = `
+		<span class="perf-filter-banner__label">${label}</span>
+		<button class="perf-filter-banner__clear" type="button" id="perf-filter-clear">Clear filter ✕</button>
+	`;
+	document.getElementById('perf-filter-clear').addEventListener('click', () => {
+		state.perfFilter = null;
+		renderRows();
+	});
+}
+// Status counts now render entirely via renderTabs() (color-coded counts + urgency pulse).
+// renderStats kept as a no-op for backward compat with existing call sites; can be removed later.
+function renderStats() { /* now handled by renderTabs */ }
+
+// Build the "auto-sent" vs "sent by..." badge for the thread detail header
+function sentBadgeFor(t) {
+	if (t.status !== 'sent') return '';
+	const log = state.sendLogs[t.id];
+	const isAuto = log && /^auto:/.test(log.sent_by || '');
+	const when = log && log.created_at ? new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+	if (isAuto) {
+		return ` <span class="sent-badge sent-badge--auto" title="Sent automatically by AI${when ? ' on ' + when : ''}">⚡ AUTO-SENT${when ? ` · ${when}` : ''}</span>`;
+	}
+	// Manual send — try to surface who sent it
+	let who = 'manually';
+	if (log && log.sent_by) {
+		const parts = log.sent_by.split(':');
+		if (parts.length > 1 && parts[1] && parts[1] !== 'dashboard') who = `by ${parts[1]}`;
+	}
+	return ` <span class="sent-badge sent-badge--manual" title="Sent ${who}${when ? ' on ' + when : ''}">✓ SENT${when ? ` · ${when}` : ''}</span>`;
+}
+
+// Compute KPIs from in-memory state and render the Inbox overview cards.
+// All math is client-side from already-loaded data — no extra Supabase round-trip.
+function renderPerf() {
+	// Active = not soft-deleted. Used for all "live workflow" counts.
+	const threads = state.threads.filter(t => !t.deleted_at);
+	const deletedCount = state.threads.length - threads.length;
+	const logs = Object.values(state.sendLogs);
+	const total = threads.length;
+	const sentTotal = logs.length;
+	const autoCount = logs.filter(l => /^auto:/.test(l.sent_by || '')).length;
+	const manualCount = sentTotal - autoCount;
+	const autoPct = sentTotal > 0 ? Math.round((autoCount / sentTotal) * 100) : 0;
+	// Workload buckets
+	let draftsCount = 0, escalatedCount = 0;
+	for (const t of threads) {
+		if (t.status === 'ready' || t.status === 'review' || t.status === 'new') draftsCount++;
+		else if (t.status === 'escalated') escalatedCount++;
+	}
+	// Avg confidence across all drafts we have cached
+	let confTotal = 0, confN = 0;
+	for (const tid of Object.keys(state.drafts)) {
+		const arr = state.drafts[tid] || [];
+		if (arr[0] && typeof arr[0].confidence === 'number') { confTotal += arr[0].confidence; confN++; }
+	}
+	const avgConf = confN > 0 ? Math.round((confTotal / confN) * 100) : null;
+
+	const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+	setHTML('perf-drafts', `<span class="perf-stat__num">${draftsCount}</span>`);
+	setHTML('perf-escalated', `<span class="perf-stat__num">${escalatedCount}</span>`);
+	setHTML('perf-auto', `<span class="perf-stat__num">${autoCount}</span>${sentTotal > 0 ? `<span class="perf-stat__pct">(${autoPct}% of sent)</span>` : ''}`);
+	setHTML('perf-manual', `<span class="perf-stat__num">${manualCount}</span>`);
+	setHTML('perf-conf', avgConf !== null ? `<span class="perf-stat__num">${avgConf}%</span>` : '<span class="perf-stat__num">—</span>');
+	setHTML('perf-total', `<span class="perf-stat__num">${total}</span>`);
+
+	// Highlight active filter + apply attention states to workload cards.
+	// Drafts → 'has-work' (amber tint when count > 0)
+	// Escalations → 'has-urgency' (rose tint + pulse when count > 0)
+	// Other cards stay neutral. Active filter (clicked) tints crimson on top of these.
+	document.querySelectorAll('.perf-stat').forEach(btn => {
+		btn.classList.toggle('is-active', state.perfFilter === btn.dataset.perfFilter);
+		if (btn.dataset.perfFilter === 'drafts') {
+			btn.classList.toggle('has-work', draftsCount > 0);
+			btn.classList.toggle('perf-stat--drafts', true);
+		}
+		if (btn.dataset.perfFilter === 'escalated') {
+			btn.classList.toggle('has-urgency', escalatedCount > 0);
+			btn.classList.toggle('perf-stat--escalated', true);
+		}
+	});
+
+	// Subhead next to "Inbox overview" — quick story signal
+	const sub = document.getElementById('overview-sub');
+	if (sub) {
+		if (sentTotal === 0) {
+			sub.textContent = `${total} thread${total === 1 ? '' : 's'} · ${draftsCount} awaiting review`;
+		} else if (autoCount > 0) {
+			sub.innerHTML = `${autoCount} of ${sentTotal} sent automatically · <strong style="color:var(--ink-2);">${autoPct}%</strong> auto-handled`;
+		} else {
+			sub.textContent = `${sentTotal} sent · ${draftsCount} awaiting review`;
+		}
+	}
+}
+
+// Wire overview-card clicks once on init (cards are static HTML, no need to re-bind)
+function wirePerfDrawer() {
+	document.querySelectorAll('.perf-stat').forEach(btn => {
+		btn.addEventListener('click', async (e) => {
+			e.preventDefault();
+			const which = btn.dataset.perfFilter;
+			// Toggle: clicking the active filter again clears it
+			if (state.perfFilter === which) {
+				state.perfFilter = null;
+			} else {
+				state.perfFilter = which;
+			}
+			// Confidence sort needs drafts loaded; trigger bulk fetch if missing
+			if (state.perfFilter === 'confidence') {
+				try { await fetchLatestDraftPerThread(); } catch (e) { console.warn(e); }
+			}
+			renderRows();
+		});
+	});
+}
+
+function bannerFor(draft) {
+	if (!draft) return { cls: 'ai-banner--low', html: '<strong>No draft yet.</strong> The AI may still be working — check back in a moment.' };
+	if (SAFETY.BLOCKED_CATEGORIES.includes(draft.category)) return { cls: 'ai-banner--blocked', html: `<strong>AI detected:</strong> Categorized as <strong>${esc(draft.category.replace('_',' '))}</strong>. Human approval required regardless of confidence.` };
+	if (draft.needs_human) return { cls: 'ai-banner--low', html: `<strong>AI flagged for human review.</strong> Confidence: ${Math.round(draft.confidence*100)}%.` };
+	if (draft.confidence < SAFETY.MIN_CONFIDENCE) return { cls: 'ai-banner--low', html: `<strong>AI drafted</strong> with ${Math.round(draft.confidence*100)}% confidence — below 85% threshold. Review before sending.` };
+	return { cls: '', html: `<strong>AI drafted</strong> with ${Math.round(draft.confidence*100)}% confidence. Ready for your review.` };
+}
+// Build a chronological thread timeline combining:
+//   - send_logs (our outbound replies, both auto and manual)
+//   - inbound_messages (the full per-email inbound history — Phase 2)
+//   - falls back to thread.body_text for old threads pre-migration-005 with no
+//     inbound_messages rows (so the timeline isn't blank for legacy threads)
+// Hybrid collapse: latest 2 entries expanded + most recent inbound always expanded
+// (it pairs with the AI draft above via the "Replying to ↓" connector).
+function buildTimelineHTML(t) {
+	const logs = (state.threadSendLogs && state.threadSendLogs[t.id]) || [];
+	const inbounds = (state.threadInbounds && state.threadInbounds[t.id]) || [];
+	// Build a unified events list
+	const events = [];
+	for (const log of logs) {
+		const isAuto = /^auto:/.test(log.sent_by || '');
+		events.push({
+			type: 'outbound',
+			direction: 'out',
+			isAuto,
+			subject: log.subject || '',
+			body: log.body_text || '',
+			when: new Date(log.created_at),
+			sentBy: log.sent_by || 'manual',
+		});
+	}
+	// Inbounds: Phase 2 — use inbound_messages rows if we have them.
+	// Legacy fallback: if no inbound_messages rows exist (thread predates migration 005),
+	// fall back to the single cached inbound on thread.body_text.
+	if (inbounds.length > 0) {
+		for (const inb of inbounds) {
+			events.push({
+				type: 'inbound',
+				direction: 'in',
+				subject: inb.subject || '',
+				body: inb.body_text || '',
+				rawBody: inb.body_text_raw || '',
+				when: new Date(inb.received_at || inb.created_at),
+				from: inb.from_name || inb.from_email,
+				fromEmail: inb.from_email,
+			});
+		}
+	} else if (t.body_text || t.body_text_raw) {
+		events.push({
+			type: 'inbound',
+			direction: 'in',
+			subject: t.subject || '',
+			body: t.body_text || '',
+			rawBody: t.body_text_raw || '',
+			when: t.last_inbound_at,
+			from: t.guest_name || t.guest_email,
+			fromEmail: t.guest_email,
+		});
+	}
+	// Sort newest-first (most recent at top — matches Gmail/Outlook convention).
+	// Tiebreaker: when an inbound and outbound share a timestamp, put the inbound
+	// at the top of that minute. Same-minute outbounds were triggered by the inbound,
+	// so anchoring the inbound as "most recent of the group" reads more naturally
+	// (the guest's message stays paired with the AI draft above it).
+	events.sort((a, b) => {
+		const diff = b.when - a.when;
+		if (diff !== 0) return diff;
+		if (a.direction === 'in' && b.direction !== 'in') return -1;
+		if (b.direction === 'in' && a.direction !== 'in') return 1;
+		return 0;
+	});
+	if (events.length === 0) return '';
+
+	// Hybrid collapse: keep the first 2 events (newest) expanded by default.
+	// Plus: the most recent INBOUND is always expanded since it's directly paired with
+	// the AI draft above the timeline via the "Replying to ↓" connector.
+	const latestInboundIdx = events.findIndex(ev => ev.direction === 'in');
+	const expandedUntil = 2;
+
+	const rows = events.map((ev, idx) => {
+		const expanded = idx < expandedUntil || idx === latestInboundIdx;
+		const time = ev.when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+		const previewBody = (ev.body || '').replace(/\s+/g, ' ').slice(0, 110);
+
+		if (ev.direction === 'in') {
+			const av = `<div class="tl-avatar" style="background:${colorFor(ev.fromEmail)}">${initials(ev.from, ev.fromEmail)}</div>`;
+			const header = `<div class="tl-row__header">
+				${av}
+				<div class="tl-row__meta"><div class="tl-row__from">${esc(ev.from)} <span class="tl-row__email">&lt;${esc(ev.fromEmail)}&gt;</span></div><div class="tl-row__time">${time}</div></div>
+				<div class="tl-row__tag tl-row__tag--in">Guest</div>
+			</div>`;
+			const cleanBody = ev.body ? `<div class="tl-row__body">${esc(ev.body)}</div>` : '<div class="tl-row__body tl-row__body--empty">(empty body)</div>';
+			const rawDetails = (ev.rawBody && ev.rawBody.length > (ev.body || '').length + 50)
+				? `<details class="tl-row__raw"><summary>Show full email (${ev.rawBody.length.toLocaleString()} chars)</summary><div class="tl-row__raw-body">${esc(ev.rawBody)}</div></details>`
+				: '';
+			return `<details class="tl-row tl-row--in" ${expanded ? 'open' : ''}>
+				<summary class="tl-row__summary">${header}<div class="tl-row__preview">${esc(previewBody)}</div></summary>
+				${cleanBody}
+				${rawDetails}
+			</details>`;
+		}
+
+		// outbound
+		const icon = ev.isAuto ? '⚡' : '✓';
+		const tagLabel = ev.isAuto ? 'Auto-sent' : 'Sent';
+		const tagCls = ev.isAuto ? 'tl-row__tag--auto' : 'tl-row__tag--manual';
+		const avCls = ev.isAuto ? 'tl-avatar--auto' : 'tl-avatar--manual';
+		const header = `<div class="tl-row__header">
+			<div class="tl-avatar ${avCls}">${icon}</div>
+			<div class="tl-row__meta"><div class="tl-row__from">Sendy <span class="tl-row__email">&lt;sendy@inbox.getskibots.com&gt;</span></div><div class="tl-row__time">${time}</div></div>
+			<div class="tl-row__tag ${tagCls}">${tagLabel}</div>
+		</div>`;
+		const body = `<div class="tl-row__body">${esc(ev.body || '')}</div>`;
+		return `<details class="tl-row tl-row--out tl-row--${ev.isAuto ? 'auto' : 'manual'}" ${expanded ? 'open' : ''}>
+			<summary class="tl-row__summary">${header}<div class="tl-row__preview">${esc(previewBody)}</div></summary>
+			${body}
+		</details>`;
+	}).join('');
+
+	return `<div class="thread-timeline">
+		<div class="thread-timeline__header">Conversation${events.length > 1 ? ` <span class="thread-timeline__count">${events.length} message${events.length === 1 ? '' : 's'}</span>` : ''}</div>
+		${rows}
+	</div>`;
+}
+
+async function renderDetail() {
+	const t = state.threads.find(x => x.id === state.activeThreadId);
+	const detail = document.getElementById('detail');
+	if (!t) {
+		const activeThreads = state.threads.filter(x => !x.deleted_at);
+		const inboxFullyEmpty = activeThreads.length === 0;
+		if (inboxFullyEmpty) {
+			// Celebratory empty state — inbox is completely caught up
+			detail.innerHTML = `<div class="detail-empty detail-empty--celebrate">
+				<div class="detail-empty__icon">☀️</div>
+				<h2 class="detail-empty__headline">Your inbox is clear.</h2>
+				<p class="detail-empty__sub">You're crushing it. Now send yourself outside.</p>
+			</div>`;
+		} else {
+			// Compact prompt — threads exist, user just hasn't selected one
+			detail.innerHTML = `<div class="detail-empty">
+				<svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+				<div>Select a thread to review the draft</div>
+				<div class="detail-empty__hint">Or forward another guest email to <span style="color:var(--crimson);font-family:var(--font-mono);font-size:11px;">sendy@inbox.getskibots.com</span></div>
+			</div>`;
+		}
+		return;
+	}
+	let drafts = state.drafts[t.id];
+	if (!drafts) { try { drafts = await fetchDrafts(t.id); } catch (e) { drafts = []; } }
+	const draft = drafts[0];
+	const banner = bannerFor(draft);
+	const isBlocked = draft && SAFETY.BLOCKED_CATEGORIES.includes(draft.category);
+	const confCls = !draft ? 'draft-chip--conf-low' : isBlocked || draft.confidence < 0.5 ? 'draft-chip--conf-block' : draft.confidence < SAFETY.MIN_CONFIDENCE ? 'draft-chip--conf-low' : 'draft-chip--conf';
+
+	detail.innerHTML = `<header class="detail-header">
+		<div class="detail-header__left">
+			<div class="avatar" style="background:${colorFor(t.guest_email)};width:42px;height:42px;font-size:13px;">${initials(t.guest_name, t.guest_email)}</div>
+			<div class="detail-header__info">
+				<div class="detail-header__name">${esc(t.guest_name || t.guest_email)}${sentBadgeFor(t)}</div>
+				<div class="detail-header__email">${esc(t.guest_email)}</div>
+				<div class="detail-header__to">To: sendy@inbox.getskibots.com</div>
+			</div>
+		</div>
+		<div class="detail-header__date">
+			${t.last_inbound_at.toLocaleString('en-US', {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
+			<button class="detail-header__menu-btn" type="button" id="detail-menu-btn" title="More actions" aria-label="More actions">
+				<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+			</button>
+			<div class="detail-header__menu" id="detail-menu" hidden>
+				${t.deleted_at
+					? `<button type="button" class="detail-header__menu-item" data-action="restore"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Restore thread</button>`
+					: `<button type="button" class="detail-header__menu-item detail-header__menu-item--danger" data-action="delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete thread</button>`}
+			</div>
+		</div>
+	</header>
+	<div class="detail-body">
+		<div class="ai-banner ${banner.cls}"><svg class="ai-banner__spark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0l2.5 7.5L22 10l-7.5 2.5L12 20l-2.5-7.5L2 10l7.5-2.5z"/></svg><div class="ai-banner__text">${banner.html}</div></div>
+
+		${draft ? `<div class="draft-section">
+			<div class="draft-section__header">
+				<div class="draft-section__title"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0l2.5 7.5L22 10l-7.5 2.5L12 20l-2.5-7.5L2 10l7.5-2.5z"/></svg>AI-drafted reply</div>
+				<div class="draft-meta">
+					<span class="draft-chip draft-chip--cat">${esc(draft.category.replace('_',' '))}</span>
+					<span class="draft-chip ${confCls}">${Math.round(draft.confidence*100)}% confidence</span>
+					${draft.needs_human ? '<span class="draft-chip draft-chip--human">needs human</span>' : ''}
+				</div>
+			</div>
+			${draft.internal_notes ? `<div class="internal-notes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span><strong>Internal notes:</strong> ${esc(draft.internal_notes)}</span></div>` : ''}
+			${isBlocked ? `<div class="draft-blocked-banner"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>This category is permanently blocked from auto-sending. Editable but must be human-approved.</span></div>` : ''}
+			<div class="draft-field"><label class="draft-field__label">Subject</label><input class="draft-field__input" id="edit-subject" value="${esc(draft.suggested_subject || '')}" ${t.status === 'sent' ? 'disabled' : ''}></div>
+			<div class="draft-field"><label class="draft-field__label">Reply body</label><textarea class="draft-field__textarea" id="edit-reply" ${t.status === 'sent' ? 'disabled' : ''}>${esc(draft.suggested_reply || '')}</textarea></div>
+			${t.status === 'sent' ? `<div class="sent-state-row">
+				<span class="sent-state-row__label">✓ Marked as sent.</span>
+				${!t.deleted_at ? `<button class="action-btn action-btn--secondary action-btn--sm" id="btn-followup-open"><svg viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/></svg>Send follow-up</button>` : ''}
+			</div>` : `
+			<div class="draft-actions">
+				<button class="action-btn action-btn--primary" id="btn-send" ${state.config.lambda_url ? '' : 'disabled title="Lambda URL not configured"'}><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>Send</button>
+				<button class="action-btn action-btn--secondary" id="btn-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy reply</button>
+				${state.config.lambda_url ? `<button class="action-btn action-btn--secondary" id="btn-regen"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span id="btn-regen-label">Regenerate</span></button>` : ''}
+				<button class="action-btn action-btn--secondary" id="btn-sent"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Mark sent (external)</button>
+				${!isBlocked && t.status !== 'escalated' ? `<button class="action-btn action-btn--danger" id="btn-escalate"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Escalate</button>` : ''}
+			</div>`}
+		</div>` : `<div class="draft-section"><div style="text-align:center;color:var(--mute);font-size:13px;padding:30px;"><div class="spinner" style="border-color:var(--crimson);border-right-color:transparent;width:18px;height:18px;margin-bottom:12px;"></div><div>AI is drafting a reply — usually 5-15 seconds.</div>${state.config.lambda_url ? `<button class="action-btn action-btn--secondary" id="btn-regen" style="margin-top:14px;"><span id="btn-regen-label">Draft with AI</span></button>` : ''}</div></div>`}
+
+		<div class="replying-to-connector">
+			<span class="replying-to-connector__label">Replying to</span>
+			<svg class="replying-to-connector__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="19 12 12 19 5 12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
+		</div>
+
+		${buildTimelineHTML(t)}
+	</div>`;
+
+	document.getElementById('btn-send')?.addEventListener('click', () => sendReply(t.id, draft));
+	document.getElementById('btn-copy')?.addEventListener('click', () => copyReply(t.id, draft));
+	document.getElementById('btn-regen')?.addEventListener('click', () => showRegenHint(t.id));
+	document.getElementById('btn-sent')?.addEventListener('click', () => markSent(t.id, draft));
+	document.getElementById('btn-escalate')?.addEventListener('click', () => escalate(t.id));
+
+	// 3-dot menu (delete / restore)
+	const menuBtn = document.getElementById('detail-menu-btn');
+	const menu = document.getElementById('detail-menu');
+	if (menuBtn && menu) {
+		menuBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			menu.hidden = !menu.hidden;
+		});
+		document.addEventListener('click', function closeMenu(e) {
+			if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn) menu.hidden = true;
+		});
+		menu.querySelectorAll('[data-action]').forEach(btn => {
+			btn.addEventListener('click', () => {
+				menu.hidden = true;
+				const action = btn.dataset.action;
+				if (action === 'delete') deleteThread(t.id);
+				else if (action === 'restore') restoreThread(t.id);
+			});
+		});
+	}
+
+	// Follow-up composer (only when thread is sent and the user clicked "Send follow-up")
+	document.getElementById('btn-followup-open')?.addEventListener('click', () => openFollowupComposer(t));
+	document.getElementById('btn-followup-send')?.addEventListener('click', () => {
+		const subj = document.getElementById('followup-subject')?.value || '';
+		const bod = document.getElementById('followup-body')?.value || '';
+		sendFollowup(t.id, subj, bod);
+	});
+	document.getElementById('btn-followup-cancel')?.addEventListener('click', () => {
+		document.getElementById('followup-composer')?.remove();
+		document.getElementById('btn-followup-open')?.removeAttribute('hidden');
+	});
+
+	const subjectEl = document.getElementById('edit-subject');
+	const replyEl = document.getElementById('edit-reply');
+	if (subjectEl && draft) { let timer; subjectEl.addEventListener('input', e => { clearTimeout(timer); timer = setTimeout(() => updateDraft(draft.id, { suggested_subject: e.target.value }).catch(console.error), 800); }); }
+	if (replyEl && draft) { let timer; replyEl.addEventListener('input', e => { clearTimeout(timer); timer = setTimeout(() => updateDraft(draft.id, { suggested_reply: e.target.value }).catch(console.error), 800); }); }
+}
+async function openThread(id) {
+	state.activeThreadId = id;
+	markThreadRead(id);
+	renderRows();
+	// Lazy-fetch send_log + inbound history for the timeline (cached after first load per thread)
+	try { await Promise.all([fetchAllSendLogsForThread(id), fetchAllInboundsForThread(id)]); } catch (e) { console.warn(e); }
+	await renderDetail();
+}
+function showToast(msg, err) { const t = document.getElementById('toast'); t.classList.toggle('toast--error', !!err); document.getElementById('toast-msg').textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400); }
+
+async function copyReply(threadId, draft) {
+	const subject = document.getElementById('edit-subject').value;
+	const reply = document.getElementById('edit-reply').value;
+	const formatted = `Subject: ${subject}\n\n${reply}`;
+	try { await navigator.clipboard.writeText(formatted); showToast('Reply copied — paste into Outlook/Gmail'); }
+	catch (e) { const ta = document.createElement('textarea'); ta.value = formatted; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); showToast('Reply copied'); } catch { showToast('Could not copy', true); } ta.remove(); }
+}
+function isRegenPanelOpen() {
+	return !!document.getElementById('regen-hint-panel');
+}
+
+function showRegenHint(threadId) {
+	const existing = document.getElementById('regen-hint-panel');
+	if (existing) { existing.remove(); return; }
+	const actionsRow = document.querySelector('.draft-actions');
+	if (!actionsRow) return;
+	const panel = document.createElement('div');
+	panel.id = 'regen-hint-panel';
+	panel.style.cssText = 'margin-top:10px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-2);font-family:var(--font-ui);';
+	panel.innerHTML = `
+		<label for="regen-hint-text" style="display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px;">Tell the AI what to change <span style="color:var(--mute);font-weight:400;">(optional · press Enter to send · Shift+Enter for newline)</span></label>
+		<textarea id="regen-hint-text" placeholder="e.g. Make it shorter and more apologetic. Mention the Pioneer Private Lessons." maxlength="500" rows="3" style="width:100%;font-family:var(--font-ui);font-size:13px;padding:10px 12px;border:1px solid var(--border-2);border-radius:7px;resize:vertical;background:#fff;color:var(--ink);box-sizing:border-box;"></textarea>
+		<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+			<button id="regen-cancel" style="font-family:var(--font-ui);font-size:12px;font-weight:600;padding:7px 14px;border-radius:7px;border:1px solid var(--border-2);background:#fff;color:var(--ink-2);cursor:pointer;">Cancel</button>
+			<button id="regen-go" style="font-family:var(--font-ui);font-size:12px;font-weight:600;padding:7px 16px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;">Regenerate</button>
+		</div>
+	`;
+	actionsRow.parentNode.insertBefore(panel, actionsRow.nextSibling);
+	const ta = document.getElementById('regen-hint-text');
+	ta.focus();
+	document.getElementById('regen-cancel').addEventListener('click', () => panel.remove());
+	document.getElementById('regen-go').addEventListener('click', () => {
+		const hint = ta.value.trim();
+		panel.remove();
+		regenerate(threadId, hint);
+	});
+	// Enter submits; Shift+Enter inserts a newline; Escape cancels
+	ta.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			document.getElementById('regen-go').click();
+		}
+		if (e.key === 'Escape') {
+			panel.remove();
+		}
+	});
+}
+
+// Rotating ski-themed loading copy. Each regen pulls a random line and rotates every 2.2s.
+const REGEN_STATUS_LINES = [
+	'Carving fresh lines…',
+	'Sharpening the edges…',
+	'Chasing fresh tracks…',
+	'Shredding through the new draft…',
+];
+let _regenStatusTimer = null;
+
+function startRegenLoading() {
+	const section = document.querySelector('.draft-section');
+	if (!section) return;
+	section.classList.add('is-regenerating');
+	// Anchor overlay to a wrapper around the reply textarea so it covers
+	// exactly the textarea bounding box (not the label above it).
+	const textarea = document.getElementById('edit-reply');
+	if (!textarea) return;
+	// Wrap the textarea in a positioned container if it isn't already
+	let wrapper = textarea.parentElement;
+	if (!wrapper.classList.contains('regen-anchor')) {
+		// Make the textarea's immediate sibling structure work: insert a wrapping div
+		const anchor = document.createElement('div');
+		anchor.className = 'regen-anchor';
+		anchor.style.cssText = 'position: relative;';
+		textarea.parentNode.insertBefore(anchor, textarea);
+		anchor.appendChild(textarea);
+		wrapper = anchor;
+	}
+	const existingOverlay = document.getElementById('regen-overlay');
+	if (existingOverlay) existingOverlay.remove();
+	const overlay = document.createElement('div');
+	overlay.id = 'regen-overlay';
+	overlay.className = 'regen-overlay';
+	overlay.innerHTML = `
+		<div class="regen-overlay__status" id="regen-status-text">…</div>
+		<div class="regen-skel-stack">
+			<div class="regen-skel regen-skel--line regen-skel--line-long"></div>
+			<div class="regen-skel regen-skel--line regen-skel--line-long"></div>
+			<div class="regen-skel regen-skel--line regen-skel--line-mid"></div>
+			<div class="regen-skel regen-skel--line regen-skel--line-short"></div>
+		</div>
+	`;
+	wrapper.appendChild(overlay);
+	// Trigger fade-in next tick
+	requestAnimationFrame(() => overlay.classList.add('is-visible'));
+	// Rotate status text
+	const textEl = document.getElementById('regen-status-text');
+	let idx = Math.floor(Math.random() * REGEN_STATUS_LINES.length);
+	textEl.textContent = REGEN_STATUS_LINES[idx];
+	if (_regenStatusTimer) clearInterval(_regenStatusTimer);
+	_regenStatusTimer = setInterval(() => {
+		idx = (idx + 1) % REGEN_STATUS_LINES.length;
+		const el = document.getElementById('regen-status-text');
+		if (el) el.textContent = REGEN_STATUS_LINES[idx];
+	}, 2200);
+}
+
+function stopRegenLoading() {
+	if (_regenStatusTimer) { clearInterval(_regenStatusTimer); _regenStatusTimer = null; }
+	const section = document.querySelector('.draft-section');
+	if (section) section.classList.remove('is-regenerating');
+	document.getElementById('regen-overlay')?.remove();
+}
+
+// Fade the overlay out smoothly (used after a successful regen for the 800ms tail)
+function fadeOutRegenLoading() {
+	return new Promise(resolve => {
+		const overlay = document.getElementById('regen-overlay');
+		if (!overlay) { resolve(); return; }
+		overlay.classList.remove('is-visible');
+		setTimeout(() => {
+			stopRegenLoading();
+			resolve();
+		}, 280); // matches transition duration
+	});
+}
+
+async function regenerate(threadId, hint) {
+	if (!state.config.lambda_url) { showToast('No Lambda URL configured', true); return; }
+	startRegenLoading();
+	const startedAt = Date.now();
+	try {
+		const payload = { thread_id: threadId };
+		if (hint) payload.hint = hint;
+		const res = await fetch(state.config.lambda_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+		if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()).slice(0, 200));
+		await res.json();
+
+		// Park the overlay outside the .draft-section before re-render, so it survives
+		// the DOM swap and stays visible on screen continuously.
+		const overlay = document.getElementById('regen-overlay');
+		const replyTextarea = document.getElementById('edit-reply');
+		let parkedRect = null;
+		if (overlay && replyTextarea) {
+			const rect = replyTextarea.getBoundingClientRect();
+			parkedRect = rect;
+			document.body.appendChild(overlay);
+			overlay.style.position = 'fixed';
+			overlay.style.top = rect.top + 'px';
+			overlay.style.left = rect.left + 'px';
+			overlay.style.width = rect.width + 'px';
+			overlay.style.height = rect.height + 'px';
+			overlay.style.inset = 'auto';
+			overlay.style.borderRadius = '7px';
+		}
+
+		// Fetch + render the new draft (overlay is parked, still visible)
+		delete state.drafts[threadId];
+		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
+
+		// Guarantee a minimum 1.2s of total visible loading time
+		const elapsed = Date.now() - startedAt;
+		const minVisible = 1200;
+		if (elapsed < minVisible) {
+			await new Promise(r => setTimeout(r, minVisible - elapsed));
+		}
+
+		// Update parked overlay's position to track the new textarea's bounds
+		// (in case the textarea size changed) and fade it out
+		const parkedOverlay = document.getElementById('regen-overlay');
+		const newTextarea = document.getElementById('edit-reply');
+		if (parkedOverlay && newTextarea) {
+			const newRect = newTextarea.getBoundingClientRect();
+			parkedOverlay.style.top = newRect.top + 'px';
+			parkedOverlay.style.left = newRect.left + 'px';
+			parkedOverlay.style.width = newRect.width + 'px';
+			parkedOverlay.style.height = newRect.height + 'px';
+		}
+		fadeOutParkedOverlay();
+		await new Promise(r => setTimeout(r, 320));
+		showToast(hint ? 'Redrafted with your instructions' : 'Drafted with AI');
+	} catch (e) {
+		stopRegenLoading();
+		showToast('Regenerate failed: ' + e.message, true);
+	}
+}
+
+function fadeOutParkedOverlay() {
+	if (_regenStatusTimer) { clearInterval(_regenStatusTimer); _regenStatusTimer = null; }
+	const section = document.querySelector('.draft-section');
+	if (section) section.classList.remove('is-regenerating');
+	const overlay = document.getElementById('regen-overlay');
+	if (!overlay) return;
+	overlay.classList.remove('is-visible');
+	setTimeout(() => overlay.remove(), 280);
+}
+async function sendReply(threadId, draft) {
+	if (!state.config.lambda_url) { showToast('Lambda URL not configured', true); return; }
+	const subject = document.getElementById('edit-subject').value;
+	const body = document.getElementById('edit-reply').value;
+	if (!subject.trim() || !body.trim()) {
+		showToast('Subject and body required', true);
+		return;
+	}
+	const btn = document.getElementById('btn-send');
+	if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Sending…'; }
+	try {
+		const res = await fetch(state.config.lambda_url.replace(/\/$/, '') + '/send', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				thread_id: threadId,
+				draft_id: draft ? draft.id : null,
+				subject,
+				body,
+				sent_by: 'manual:dashboard',
+			}),
+		});
+		const data = await res.json().catch(() => ({}));
+		if (!res.ok) {
+			throw new Error(data.error || ('HTTP ' + res.status));
+		}
+		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
+		showToast('Sent via SES');
+	} catch (e) {
+		showToast('Send failed: ' + e.message, true);
+		if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg> Send'; }
+	}
+}
+async function markSent(threadId, draft) {
+	if (!confirm('Mark this reply as sent? (Do this after pasting into Outlook and hitting send.)')) return;
+	const subject = document.getElementById('edit-subject').value;
+	const body = document.getElementById('edit-reply').value;
+	try {
+		await insertSendLog(threadId, draft ? draft.id : null, subject, body);
+		await updateThread(threadId, { status: 'sent', last_outbound_at: new Date().toISOString() });
+		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
+		showToast('Marked as sent');
+	} catch (e) { showToast('Failed: ' + e.message, true); }
+}
+async function escalate(threadId) {
+	const reason = prompt('Escalate to a teammate. Add a quick note (optional):');
+	if (reason === null) return;
+	try {
+		await insertFlag(threadId, 'staff_flagged', reason || '');
+		await updateThread(threadId, { status: 'escalated' });
+		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
+		showToast('Thread escalated');
+	} catch (e) { showToast('Failed: ' + e.message, true); }
+}
+
+async function deleteThread(threadId) {
+	const t = state.threads.find(x => x.id === threadId);
+	if (!t) return;
+	const guestLabel = t.guest_name || t.guest_email;
+	const ok = confirm(`Delete this thread from "${guestLabel}"?\n\nIt will be hidden from views but can be restored from the trash filter.`);
+	if (!ok) return;
+	try {
+		await updateThread(threadId, { deleted_at: new Date().toISOString() });
+		// If the active thread is the one we just deleted, deselect
+		if (state.activeThreadId === threadId) state.activeThreadId = null;
+		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
+		showToast('Thread deleted · view in trash to restore');
+	} catch (e) { showToast('Delete failed: ' + e.message, true); }
+}
+
+async function restoreThread(threadId) {
+	try {
+		await updateThread(threadId, { deleted_at: null });
+		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
+		showToast('Thread restored');
+	} catch (e) { showToast('Restore failed: ' + e.message, true); }
+}
+
+// Open the inline follow-up composer below the existing sent draft.
+function openFollowupComposer(t) {
+	// If already open, focus the body and stop
+	const existing = document.getElementById('followup-composer');
+	if (existing) { document.getElementById('followup-body')?.focus(); return; }
+	const draftSection = document.querySelector('.draft-section');
+	if (!draftSection) return;
+	// Hide the open-trigger button while the composer is up
+	document.getElementById('btn-followup-open')?.setAttribute('hidden', '');
+
+	const composer = document.createElement('div');
+	composer.id = 'followup-composer';
+	composer.className = 'followup-composer';
+	const subjectPrefill = (t.subject || '').startsWith('Re:') ? t.subject : 'Re: ' + (t.subject || '');
+	composer.innerHTML = `
+		<div class="followup-composer__header">
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/></svg>
+			<span class="followup-composer__title">Send a follow-up reply</span>
+			<span class="followup-composer__hint">Threads under the previous send</span>
+		</div>
+		<div class="followup-composer__field">
+			<label class="followup-composer__label" for="followup-subject">Subject</label>
+			<input class="followup-composer__input" id="followup-subject" value="${esc(subjectPrefill)}" />
+		</div>
+		<div class="followup-composer__field">
+			<label class="followup-composer__label" for="followup-body">Reply body</label>
+			<textarea class="followup-composer__textarea" id="followup-body" placeholder="Type your follow-up message…"></textarea>
+		</div>
+		<div class="followup-composer__actions">
+			<button class="action-btn action-btn--secondary action-btn--sm" id="btn-followup-cancel">Cancel</button>
+			<button class="action-btn action-btn--primary action-btn--sm" id="btn-followup-send"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>Send follow-up</button>
+		</div>
+	`;
+	draftSection.appendChild(composer);
+	document.getElementById('followup-body')?.focus();
+	// Wire the buttons (renderDetail's wiring already references these IDs but
+	// renderDetail has already finished running — so we re-bind here)
+	document.getElementById('btn-followup-cancel')?.addEventListener('click', () => {
+		composer.remove();
+		document.getElementById('btn-followup-open')?.removeAttribute('hidden');
+	});
+	document.getElementById('btn-followup-send')?.addEventListener('click', () => {
+		const subj = document.getElementById('followup-subject')?.value || '';
+		const bod = document.getElementById('followup-body')?.value || '';
+		sendFollowup(t.id, subj, bod);
+	});
+}
+
+// Send a follow-up reply on an already-sent thread (Option B: inline composer).
+// Uses the existing /send endpoint with is_follow_up=true so Lambda references
+// our previous outbound's SES Message-Id for proper threading.
+async function sendFollowup(threadId, subject, body) {
+	if (!state.config.lambda_url) { showToast('No Lambda URL configured', true); return; }
+	if (!body || !body.trim()) { showToast('Follow-up body is empty', true); return; }
+	const sendUrl = state.config.lambda_url.replace(/\/?$/, '') + '/send';
+	try {
+		const res = await fetch(sendUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				thread_id: threadId,
+				subject: subject || '',
+				body: body,
+				sent_by: 'manual:dashboard:followup',
+				is_follow_up: true,
+			}),
+		});
+		if (!res.ok) {
+			const errText = await res.text();
+			throw new Error('HTTP ' + res.status + ': ' + errText.slice(0, 200));
+		}
+		await res.json();
+		// Refresh send_logs for this thread so the new outbound appears in the timeline
+		try { await fetchAllSendLogsForThread(threadId); } catch (e) { console.warn(e); }
+		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
+		showToast('Follow-up sent');
+	} catch (e) { showToast('Follow-up failed: ' + e.message, true); }
+}
+
+// ============ NEW-EMAIL CHIME ============
+// Synthesize a soft two-note ding (G5 → C6) using Web Audio API.
+// No audio file embedded — saves ~50KB and works in all modern browsers.
+let _audioCtx = null;
+let _recentlyChimedAt = 0;
+function playChime() {
+	// Throttle: don't play more than once per 800ms (handles poll + realtime racing)
+	const now = Date.now();
+	if (now - _recentlyChimedAt < 800) return;
+	_recentlyChimedAt = now;
+	try {
+		if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+		const ctx = _audioCtx;
+		// Browsers suspend AudioContext until a user gesture has occurred on the page.
+		// First chime after page-load may be silent until staff clicks anywhere. Acceptable.
+		if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+		const startAt = ctx.currentTime;
+		// Note 1: G5 (784 Hz)
+		const o1 = ctx.createOscillator();
+		const g1 = ctx.createGain();
+		o1.type = 'sine'; o1.frequency.value = 784;
+		o1.connect(g1); g1.connect(ctx.destination);
+		g1.gain.setValueAtTime(0, startAt);
+		g1.gain.linearRampToValueAtTime(0.32, startAt + 0.01);
+		g1.gain.exponentialRampToValueAtTime(0.001, startAt + 0.45);
+		o1.start(startAt); o1.stop(startAt + 0.5);
+		// Note 2: C6 (1047 Hz), 120ms later
+		const o2 = ctx.createOscillator();
+		const g2 = ctx.createGain();
+		o2.type = 'sine'; o2.frequency.value = 1047;
+		o2.connect(g2); g2.connect(ctx.destination);
+		g2.gain.setValueAtTime(0, startAt + 0.12);
+		g2.gain.linearRampToValueAtTime(0.32, startAt + 0.13);
+		g2.gain.exponentialRampToValueAtTime(0.001, startAt + 0.55);
+		o2.start(startAt + 0.12); o2.stop(startAt + 0.6);
+	} catch (e) {
+		console.warn('Chime failed:', e);
+	}
+}
+
+// ============ REALTIME SUBSCRIPTION ============
+// Sub-second updates via Supabase websocket; 15s poll above is the fallback.
+let _realtimeChannel = null;
+function startRealtime() {
+	if (!state.supabase) return;
+	if (_realtimeChannel) state.supabase.removeChannel(_realtimeChannel);
+	_realtimeChannel = state.supabase
+		.channel('threads-inserts')
+		.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'threads' }, async (payload) => {
+			console.log('Realtime: new thread inserted', payload.new.id);
+			const knownIds = new Set(state.threads.map(t => t.id));
+			if (knownIds.has(payload.new.id)) return;
+			// Capture pre-state for auto-open decision
+			const wasEmpty = state.threads.length === 0;
+			const noActiveThread = !state.activeThreadId;
+			await fetchThreads();
+			renderTabs(); renderRows(); renderStats();
+			playChime();
+			showToast('New email');
+			// If the inbox was fully empty and nothing was selected, auto-open the new arrival
+			// so the user doesn't keep staring at the "Your inbox is clear" celebration.
+			if (wasEmpty && noActiveThread) {
+				const arrived = state.threads.find(t => t.id === payload.new.id) || state.threads.find(t => t.status !== 'sent');
+				if (arrived) openThread(arrived.id);
+			}
+		})
+		.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads' }, async (payload) => {
+			// Refresh the active thread's detail if it just got a new draft / status change
+			// BUT: skip if the user is mid-edit in the regen hint panel — would wipe their input
+			if (state.activeThreadId === payload.new.id && !isRegenPanelOpen()) {
+				delete state.drafts[payload.new.id];
+				await renderDetail();
+			}
+			await fetchThreads();
+			renderTabs(); renderRows(); renderStats();
+		})
+		.subscribe();
+}
+
+let pollTimer = null;
+function startPolling() {
+	if (pollTimer) clearInterval(pollTimer);
+	pollTimer = setInterval(async () => {
+		try {
+			const prev = new Set(state.threads.map(t => t.id));
+			const wasEmpty = state.threads.length === 0;
+			const noActiveThread = !state.activeThreadId;
+			await fetchThreads();
+			renderTabs(); renderRows(); renderStats();
+			const newOnes = state.threads.filter(t => !prev.has(t.id));
+			if (newOnes.length > 0) {
+				playChime();
+				showToast(`${newOnes.length} new email${newOnes.length>1?'s':''}`);
+				// Auto-open the first new arrival if the inbox was empty before
+				if (wasEmpty && noActiveThread) {
+					const arrived = newOnes.find(t => t.status !== 'sent') || newOnes[0];
+					if (arrived) openThread(arrived.id);
+				}
+			}
+			if (state.activeThreadId && !isRegenPanelOpen()) { delete state.drafts[state.activeThreadId]; await renderDetail(); }
+		} catch (e) { console.error('Poll failed:', e); }
+	}, 15000);
+}
+
+async function initialize() {
+	state.config = loadConfig();
+	if (!state.config || !state.config.url || !state.config.anon_key) { showConfigModal(); return; }
+	try {
+		state.supabase = window.supabase.createClient(state.config.url, state.config.anon_key);
+		setConn('connecting', 'Loading…');
+		await fetchThreads();
+		setConn('live', `Live · ${state.threads.length} threads`);
+		wirePerfDrawer(); // bind perf-stat button clicks once
+		renderTabs(); renderRows(); renderStats();
+		const first = state.threads.find(t => t.status !== 'sent');
+		if (first) openThread(first.id);
+		startPolling();
+		startRealtime();
+		// Hydrate the auto-send pill from system_settings
+		try { renderAutoSendPill(await fetchAutoSend()); } catch (e) { console.error('Pill hydration failed:', e); }
+	} catch (e) {
+		console.error(e); setConn('error', 'Connection failed');
+		showToast('Connection failed: ' + (e.message || 'check config'), true);
+	}
+}
+function showConfigModal() {
+	document.getElementById('config-overlay').style.display = 'flex';
+	if (state.config) {
+		document.getElementById('config-url').value = state.config.url || '';
+		document.getElementById('config-anon').value = state.config.anon_key || '';
+		document.getElementById('config-lambda').value = state.config.lambda_url || '';
+	}
+}
+document.getElementById('settings-btn').addEventListener('click', e => { e.preventDefault(); showConfigModal(); });
+document.getElementById('config-save').addEventListener('click', () => {
+	const cfg = {
+		url: document.getElementById('config-url').value.trim().replace(/\/$/, ''),
+		anon_key: document.getElementById('config-anon').value.trim(),
+		lambda_url: document.getElementById('config-lambda').value.trim().replace(/\/$/, ''),
+	};
+	if (!cfg.url || !cfg.anon_key) { alert('Supabase URL and anon key are required.'); return; }
+	saveConfig(cfg);
+	document.getElementById('config-overlay').style.display = 'none';
+	initialize();
+});
+document.getElementById('config-cancel').addEventListener('click', () => { document.getElementById('config-overlay').style.display = 'none'; });
+document.getElementById('config-reset').addEventListener('click', () => {
+	if (!confirm('Reset to the default Supabase + Lambda connection (Jackson Hole)?')) return;
+	clearConfig();
+	document.getElementById('config-overlay').style.display = 'none';
+	initialize();
+});
+document.getElementById('search').addEventListener('input', e => { state.search = e.target.value; renderRows(); });
+
+// ============ AUTO-SEND TOGGLE ============
+const AUTO_SEND_KEY = 'auto_send_enabled';
+const RESORT_ID = 1; // Hardcoded for Jackson Hole; will need to be dynamic when multi-resort
+
+async function fetchAutoSend() {
+	try {
+		const { data, error } = await state.supabase
+			.from('system_settings')
+			.select('value')
+			.eq('resort_id', RESORT_ID)
+			.eq('key', AUTO_SEND_KEY)
+			.limit(1);
+		if (error) throw error;
+		return !!(data && data[0] && data[0].value === 'true');
+	} catch (e) {
+		console.error('Failed to read auto-send state:', e);
+		return false;
+	}
+}
+async function setAutoSend(enabled) {
+	const { error } = await state.supabase
+		.from('system_settings')
+		.upsert({
+			resort_id: RESORT_ID,
+			key: AUTO_SEND_KEY,
+			value: enabled ? 'true' : 'false',
+			updated_at: new Date().toISOString(),
+		}, { onConflict: 'resort_id,key' });
+	if (error) throw error;
+}
+function renderAutoSendPill(enabled) {
+	const checkbox = document.getElementById('autosend-toggle');
+	const state = document.getElementById('autosend-state');
+	if (!checkbox) return;
+	checkbox.checked = !!enabled;
+	if (state) {
+		state.textContent = enabled ? 'ON' : 'OFF';
+		state.classList.toggle('autosend-wrap__state--on', !!enabled);
+	}
+}
+
+function showAutoSendConfirm(turningOn) {
+	return new Promise((resolve) => {
+		// Remove any existing modal first
+		document.getElementById('autosend-confirm-overlay')?.remove();
+		const overlay = document.createElement('div');
+		overlay.id = 'autosend-confirm-overlay';
+		overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:3000;padding:20px;';
+		const body = turningOn
+			? `<p style="font-size:14px;color:var(--ink-2);line-height:1.65;margin-bottom:8px;">When auto-send is on, the system will send AI-drafted replies on your behalf — but only when all three are true:</p>
+				<ul style="font-size:13px;color:var(--ink-2);line-height:1.7;padding-left:20px;margin-bottom:14px;">
+					<li>Confidence is 85% or higher</li>
+					<li>Not a sensitive category (refund, complaint, safety, legal, medical)</li>
+					<li>The AI didn't flag the message for human review</li>
+				</ul>
+				<p style="font-size:13px;color:var(--mute);line-height:1.6;">You can turn this off anytime. All sent messages appear in the Sent tab.</p>`
+			: `<p style="font-size:14px;color:var(--ink-2);line-height:1.65;">You'll go back to reviewing every reply before it's sent. Drafts will keep being generated automatically — they'll just wait for your approval.</p>`;
+		overlay.innerHTML = `
+			<div style="background:#fff;border-radius:14px;padding:26px 28px 22px;max-width:480px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.25);">
+				<h2 style="font-family:var(--font-display);font-weight:600;font-size:20px;color:var(--ink);margin-bottom:10px;">${turningOn ? 'Turn on auto-send?' : 'Turn off auto-send?'}</h2>
+				${body}
+				<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;">
+					<button id="autosend-cancel" style="font-family:var(--font-ui);font-size:13px;font-weight:600;padding:9px 16px;border-radius:7px;border:1px solid var(--border-2);background:#fff;color:var(--ink-2);cursor:pointer;">Cancel</button>
+					<button id="autosend-confirm" style="font-family:var(--font-ui);font-size:13px;font-weight:600;padding:9px 18px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;">${turningOn ? 'Turn on' : 'Turn off'}</button>
+				</div>
+			</div>`;
+		document.body.appendChild(overlay);
+		const cleanup = (result) => { overlay.remove(); resolve(result); };
+		overlay.querySelector('#autosend-cancel').addEventListener('click', () => cleanup(false));
+		overlay.querySelector('#autosend-confirm').addEventListener('click', () => cleanup(true));
+		overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+	});
+}
+
+async function toggleAutoSend() {
+	const checkbox = document.getElementById('autosend-toggle');
+	try {
+		const current = await fetchAutoSend();
+		const next = !current;
+		const confirmed = await showAutoSendConfirm(next);
+		if (!confirmed) {
+			// User cancelled — revert checkbox to actual state
+			if (checkbox) checkbox.checked = current;
+			return;
+		}
+		await setAutoSend(next);
+		renderAutoSendPill(next);
+		showToast(next ? 'Auto-send turned on' : 'Auto-send turned off');
+	} catch (e) {
+		// Revert on error
+		if (checkbox) checkbox.checked = !checkbox.checked;
+		showToast('Failed: ' + e.message, true);
+	}
+}
+document.getElementById('autosend-toggle').addEventListener('change', toggleAutoSend);
+
+initialize();
+</script>
+</body>
+</html>
