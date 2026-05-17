@@ -627,6 +627,7 @@ async function fetchThreads() {
 	state.threads = (data || []).map(t => ({
 		...t,
 		last_inbound_at: t.last_inbound_at ? new Date(t.last_inbound_at) : new Date(t.created_at),
+		last_outbound_at: t.last_outbound_at ? new Date(t.last_outbound_at) : null,
 		updated_at: new Date(t.updated_at),
 	}));
 	// Pull latest send_log per sent thread so the inbox can show auto/manual icons
@@ -825,7 +826,7 @@ function renderRows() {
 			return `<div class="${classes.join(' ')}" data-id="${t.id}">
 				<div class="avatar" style="background:${colorFor(t.guest_email)}">${initials(t.guest_name, t.guest_email)}</div>
 				<div class="thread-row__body">
-					<div class="thread-row__top"><span class="thread-row__name">${esc(t.guest_name || t.guest_email)}</span><span class="thread-row__time">${relTime(t.last_inbound_at)}</span></div>
+					<div class="thread-row__top"><span class="thread-row__name">${esc(t.guest_name || t.guest_email)}</span><span class="thread-row__time">${relTime(t.last_inbound_at)}${agingBadge(t.last_inbound_at, t.status)}</span></div>
 					<div class="thread-row__subject">${esc(t.subject)}</div>
 					<div class="thread-row__snippet">${esc(snippet)}</div>
 					<span class="thread-row__pill thread-row__pill--${pill}">${pillLabel}</span>
