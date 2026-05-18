@@ -59,40 +59,67 @@
 	.topbar__user { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; }
 	.topbar__avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--crimson), var(--crimson-dark)); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 	.topbar__user-name { font-size: 13px; font-weight: 500; }
-	.btn-connect { position: relative; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink-3); transition: background 0.15s, border-color 0.15s; }
+	.btn-connect { position: relative; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--ink-3); transition: background 0.15s, border-color 0.15s, width 0.2s, padding 0.2s; overflow: hidden; white-space: nowrap; }
 	.btn-connect:hover { background: var(--bg); border-color: var(--border-2); }
-	.btn-connect svg { width: 17px; height: 17px; }
-	.connect-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #fff; }
+	.btn-connect__icon-wrap { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 17px; height: 17px; }
+	.btn-connect__icon-wrap svg { width: 17px; height: 17px; }
+	.btn-connect__email { font-size: 12px; font-weight: 500; color: var(--ink-2); max-width: 0; overflow: hidden; opacity: 0; transition: max-width 0.2s, opacity 0.15s; }
+	.btn-connect--connected { width: auto; padding: 0 10px 0 8px; border-color: #bbf7d0; background: #f0fdf4; }
+	.btn-connect--connected:hover { background: #dcfce7; border-color: #86efac; }
+	.btn-connect--connected .btn-connect__email { max-width: 200px; opacity: 1; }
+	.connect-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #fff; transition: background 0.2s; }
+	.btn-connect--connected .connect-dot { top: 4px; right: 4px; }
 	.connect-dot--on { background: var(--green); }
 	.connect-dot--off { background: var(--mute-2); }
 
-	/* Connection modal */
-	.conn-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; display: flex; align-items: center; justify-content: center; }
-	.conn-modal-backdrop[hidden] { display: none; }
-	.conn-modal { background: #fff; border-radius: 14px; width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); overflow: hidden; }
-	.conn-modal__header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); }
-	.conn-modal__title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
-	.conn-modal__sub { font-size: 13px; color: var(--mute); }
-	.conn-modal__body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 10px; }
-	.conn-option { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); }
-	.conn-option__icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-	.conn-option__icon--ms { background: #e8f0fe; }
-	.conn-option__icon--gmail { background: #fce8e6; }
-	.conn-option__icon--smtp { background: var(--indigo-light); }
-	.conn-option__icon--default { background: var(--green-light); }
-	.conn-option__info { flex: 1; min-width: 0; }
-	.conn-option__name { font-size: 13px; font-weight: 600; }
-	.conn-option__desc { font-size: 12px; color: var(--mute); }
-	.conn-option__badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
-	.conn-option__badge--connected { background: var(--green-light); color: #065f46; }
-	.conn-option__badge--soon { background: var(--indigo-light); color: #3730a3; }
-	.conn-option__badge--active { background: var(--green-light); color: #065f46; }
-	.conn-btn { font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-2); background: #fff; color: var(--ink-2); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
-	.conn-btn:hover { background: var(--bg); }
-	.conn-btn--primary { background: var(--blue-active); color: #fff; border-color: var(--blue-active); }
-	.conn-btn--primary:hover { background: #1d4ed8; }
-	.conn-btn--danger { color: var(--rose); border-color: #fecdd3; }
-	.conn-btn--danger:hover { background: var(--rose-light); }
+	/* Email Settings Panel */
+	.es-panel { position: fixed; inset: 0; z-index: 200; background: #F5F7FB; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.22s cubic-bezier(.4,0,.2,1); }
+	.es-panel.open { transform: translateX(0); }
+	.es-topbar { background: #fff; border-bottom: 1px solid #E5E9F2; padding: 0 32px; height: 56px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+	.es-back { display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer; font-family: var(--font-ui); font-size: 13px; font-weight: 500; color: var(--ink-3); padding: 6px 10px; border-radius: 7px; }
+	.es-back:hover { background: var(--bg); }
+	.es-back svg { width: 16px; height: 16px; }
+	.es-topbar-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+	.es-body { flex: 1; overflow-y: auto; padding: 40px 0 80px; }
+	.es-content { max-width: 720px; margin: 0 auto; padding: 0 40px; }
+	.es-h1 { font-family: var(--font-display); font-weight: 500; font-size: 30px; line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 10px; color: #0F172A; }
+	.es-lede { font-size: 14px; line-height: 1.55; color: #64748B; margin: 0 0 28px; }
+	.es-section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: var(--blue-active); margin: 0 0 14px; text-transform: uppercase; }
+	.es-section-label.spaced { margin-top: 28px; }
+	.es-card { display: flex; align-items: center; gap: 18px; background: #fff; border: 1px solid #E5E9F2; border-radius: 14px; padding: 18px 20px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); transition: box-shadow 160ms, border-color 160ms; }
+	.es-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,0.07); }
+	.es-card.es-active { border-color: #DBEAFE; box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 0 0 3px rgba(59,130,246,0.08); }
+	.es-card.es-soon { opacity: 0.55; pointer-events: none; }
+	.es-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 500; font-size: 22px; flex-shrink: 0; }
+	.es-card-body { flex: 1; min-width: 0; }
+	.es-card-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+	.es-card-title { font-size: 15px; font-weight: 600; color: #0F172A; }
+	.es-card-desc { font-size: 13px; line-height: 1.5; color: #64748B; }
+	.es-card-meta { font-size: 12px; color: #64748B; font-family: var(--font-mono); margin-top: 2px; }
+	.es-card-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+	.es-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.02em; }
+	.es-pill--connected { color: #15803D; background: #DCFCE7; }
+	.es-pill--recommended { color: #92400E; background: #FEF3C7; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; }
+	.es-pill--soon { color: #3730A3; background: #EEF2FF; }
+	.es-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; font-family: var(--font-ui); cursor: pointer; border: none; transition: filter 140ms, transform 80ms; }
+	.es-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+	.es-btn:not(:disabled):hover { filter: brightness(0.95); }
+	.es-btn:not(:disabled):active { transform: translateY(1px); }
+	.es-btn--primary { background: #1E40AF; color: #fff; }
+	.es-btn--ghost { background: #fff; color: #334155; border: 1px solid #E2E8F0; }
+	.es-btn--danger { background: #fff; color: #B91C1C; border: 1px solid #FECACA; }
+	.es-security { display: flex; gap: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px 18px; margin-top: 28px; color: #475569; }
+	.es-security-title { font-size: 13px; font-weight: 600; color: #0F172A; margin-bottom: 4px; }
+	.es-security-text { font-size: 12px; line-height: 1.55; }
+	/* Switch confirm modal */
+	.es-scrim { position: fixed; inset: 0; background: rgba(15,23,42,0.4); backdrop-filter: blur(2px); z-index: 300; display: none; align-items: center; justify-content: center; padding: 16px; }
+	.es-scrim.open { display: flex; }
+	.es-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 20px 60px rgba(15,23,42,0.22); }
+	.es-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid #E5E9F2; }
+	.es-modal-title { font-family: var(--font-display); font-size: 18px; font-weight: 500; margin: 0; }
+	.es-modal-body { padding: 20px 22px; font-size: 13px; line-height: 1.6; color: #334155; }
+	.es-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid #E5E9F2; background: #F8FAFC; border-radius: 0 0 16px 16px; }
+	.es-callout { display: flex; align-items: flex-start; gap: 8px; border-radius: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.5; margin-bottom: 14px; background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; }
 
 	.page { flex: 1; padding: 24px 28px 40px; min-width: 0; }
 	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
@@ -509,7 +536,10 @@
 				<button class="btn-test">Test AI chat</button>
 				<button class="btn-test btn-test--solid">Test widget</button>
 				<button class="btn-connect" id="btnConnectInbox" title="Email connection settings">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+					<span class="btn-connect__icon-wrap" id="connectIconWrap">
+						<svg id="connectLinkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+					</span>
+					<span class="btn-connect__email" id="connectEmail"></span>
 					<span id="connectDot" class="connect-dot connect-dot--off"></span>
 				</button>
 				<div class="topbar__user"><div class="topbar__avatar">BQ</div><span class="topbar__user-name">Brandon Quinn</span></div>
@@ -599,6 +629,131 @@
 			<button class="action-btn action-btn--primary" id="config-save">Save &amp; reconnect</button>
 		</div>
 	</div>
+</div>
+
+<!-- Email Settings Panel -->
+<div class="es-panel" id="esPanel">
+  <div class="es-topbar">
+    <button class="es-back" id="esBack">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back to inbox
+    </button>
+    <span class="es-topbar-title">Email Settings</span>
+  </div>
+  <div class="es-body">
+    <div class="es-content">
+      <h1 class="es-h1">Inbox Connection</h1>
+      <p class="es-lede">Choose how Sendy receives and sends email on behalf of your resort. Switch providers at any time — your message history is always preserved.</p>
+
+      <div class="es-section-label">Get Ski Bots hosted</div>
+
+      <!-- GSB Hosted inbox -->
+      <div class="es-card es-active" id="esCardDefault">
+        <div class="es-icon" style="background:#F0FDF4; font-size:24px;">🏔</div>
+        <div class="es-card-body">
+          <div class="es-card-title-row">
+            <span class="es-card-title">Get Ski Bots Hosted</span>
+            <span class="es-pill es-pill--recommended">Recommended</span>
+          </div>
+          <div class="es-card-desc">Replies send from your dedicated resort address on our managed infrastructure — zero configuration required.</div>
+          <div class="es-card-meta">sendy@inbox.getskibots.com</div>
+        </div>
+        <div class="es-card-actions">
+          <span class="es-pill es-pill--connected" id="gsbActivePill">✓ Active</span>
+        </div>
+      </div>
+
+      <div class="es-section-label spaced">Connect your own inbox</div>
+
+      <!-- Microsoft Outlook -->
+      <div class="es-card" id="esCardMs">
+        <div class="es-icon" style="background:#EFF6FF;">
+          <svg width="26" height="26" viewBox="0 0 21 21" fill="none">
+            <rect x="0"  y="0"  width="10" height="10" rx="1.5" fill="#00A4EF"/>
+            <rect x="11" y="0"  width="10" height="10" rx="1.5" fill="#7FBA00"/>
+            <rect x="0"  y="11" width="10" height="10" rx="1.5" fill="#F25022"/>
+            <rect x="11" y="11" width="10" height="10" rx="1.5" fill="#FFB900"/>
+          </svg>
+        </div>
+        <div class="es-card-body">
+          <div class="es-card-title-row">
+            <span class="es-card-title">Microsoft Outlook</span>
+            <span class="es-pill es-pill--connected" id="msPill" style="display:none;">✓ Active</span>
+          </div>
+          <div class="es-card-desc" id="msCardDesc">Connect your Outlook or Microsoft 365 inbox via secure OAuth.</div>
+          <div class="es-card-meta" id="msCardMeta" style="display:none;"></div>
+        </div>
+        <div class="es-card-actions">
+          <button class="es-btn es-btn--primary" id="msConnectBtn">Connect</button>
+        </div>
+      </div>
+
+      <!-- Gmail -->
+      <div class="es-card es-soon">
+        <div class="es-icon" style="background:#FEF2F2;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M22 6.5A2.5 2.5 0 0 0 19.5 4h-15A2.5 2.5 0 0 0 2 6.5v11A2.5 2.5 0 0 0 4.5 20h15a2.5 2.5 0 0 0 2.5-2.5v-11z" fill="#fff" stroke="#EA4335" stroke-width="1.6"/>
+            <path d="M2 7l10 7 10-7" stroke="#EA4335" stroke-width="1.6"/>
+          </svg>
+        </div>
+        <div class="es-card-body">
+          <div class="es-card-title-row">
+            <span class="es-card-title">Gmail / Google Workspace</span>
+            <span class="es-pill es-pill--soon">Coming Soon</span>
+          </div>
+          <div class="es-card-desc">Connect a Gmail or Google Workspace inbox via OAuth.</div>
+        </div>
+        <div class="es-card-actions">
+          <button class="es-btn es-btn--ghost" disabled>Coming Soon</button>
+        </div>
+      </div>
+
+      <!-- Custom SMTP / IMAP -->
+      <div class="es-card es-soon">
+        <div class="es-icon" style="background:#EEF2FF;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="1.6">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <path d="M8 21h8M12 17v4"/>
+          </svg>
+        </div>
+        <div class="es-card-body">
+          <div class="es-card-title-row">
+            <span class="es-card-title">Custom SMTP / IMAP</span>
+            <span class="es-pill es-pill--soon">Coming Soon</span>
+          </div>
+          <div class="es-card-desc">Use your own mail server with full control over sending and receiving.</div>
+        </div>
+        <div class="es-card-actions">
+          <button class="es-btn es-btn--ghost" disabled>Coming Soon</button>
+        </div>
+      </div>
+
+      <div class="es-security">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.6" style="flex-shrink:0;margin-top:1px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <div>
+          <div class="es-security-title">Your data stays private</div>
+          <div class="es-security-text">OAuth connections use read-only scopes where possible. Credentials are encrypted at rest and never logged. You can disconnect at any time with one click.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Switch confirm scrim -->
+<div class="es-scrim" id="esSwitchScrim">
+  <div class="es-modal">
+    <div class="es-modal-header">
+      <h2 class="es-modal-title">Switch inbox provider?</h2>
+      <button class="es-btn es-btn--ghost" id="esSwitchCancel" style="padding:6px 12px; font-size:14px;">✕</button>
+    </div>
+    <div class="es-modal-body">
+      Switching to a new provider will disconnect your current inbox. Your thread history and drafts will be preserved.
+    </div>
+    <div class="es-modal-footer">
+      <button class="es-btn es-btn--ghost" id="esSwitchCancelBtn">Cancel</button>
+      <button class="es-btn es-btn--primary" id="esSwitchConfirmBtn">Yes, switch</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js"></script>
@@ -1906,41 +2061,102 @@ document.getElementById('autosend-toggle').addEventListener('change', toggleAuto
 
 initialize();
 
-// ── Email Connection Modal ──────────────────────────────────────────────────
+// ── Email Settings Panel ────────────────────────────────────────────────────
 const CONNECTOR_BASE = 'https://kpz4fvcdle.execute-api.us-east-1.amazonaws.com';
 
-async function loadConnectionStatus() {
+function openEsPanel() {
+  document.getElementById('esPanel').classList.add('open');
+  loadMsStatus();
+}
+function closeEsPanel() {
+  document.getElementById('esPanel').classList.remove('open');
+}
+
+async function loadMsStatus() {
   try {
     const res = await fetch(`${CONNECTOR_BASE}/api/oauth/microsoft/status`);
     const data = await res.json();
-    const dot = document.getElementById('connectDot');
+
+    // ── Topbar button ────────────────────────────────────────────────────────
+    const topbarBtn  = document.getElementById('btnConnectInbox');
+    const dot        = document.getElementById('connectDot');
+    const iconWrap   = document.getElementById('connectIconWrap');
+    const linkIcon   = document.getElementById('connectLinkIcon');
+    const emailEl    = document.getElementById('connectEmail');
+
+    // ── Panel – MS card ──────────────────────────────────────────────────────
+    const msPill   = document.getElementById('msPill');
+    const msBtn    = document.getElementById('msConnectBtn');
+    const meta     = document.getElementById('msCardMeta');
+    const desc     = document.getElementById('msCardDesc');
+    const msCard   = document.getElementById('esCardMs');
+
+    // ── Panel – GSB card ─────────────────────────────────────────────────────
+    const gsbCard  = document.getElementById('esCardDefault');
+    const gsbPill  = document.getElementById('gsbActivePill');
+
     if (data.connected) {
+      const email = data.accountEmail || 'Outlook';
+
+      // Topbar: swap link icon → MS Windows logo, expand button with email
+      linkIcon.style.display = 'none';
+      if (!document.getElementById('connectProviderSvg')) {
+        iconWrap.insertAdjacentHTML('beforeend',
+          `<svg id="connectProviderSvg" width="15" height="15" viewBox="0 0 21 21" fill="none">
+            <rect x="0"  y="0"  width="10" height="10" rx="1" fill="#00A4EF"/>
+            <rect x="11" y="0"  width="10" height="10" rx="1" fill="#7FBA00"/>
+            <rect x="0"  y="11" width="10" height="10" rx="1" fill="#F25022"/>
+            <rect x="11" y="11" width="10" height="10" rx="1" fill="#FFB900"/>
+          </svg>`
+        );
+      }
+      emailEl.textContent = email;
+      topbarBtn.classList.add('btn-connect--connected');
+      topbarBtn.title = `Connected via Microsoft Outlook · ${email}`;
       dot.className = 'connect-dot connect-dot--on';
-      document.getElementById('msConnectBtn').textContent = 'Disconnect';
-      document.getElementById('msConnectBtn').className = 'conn-btn conn-btn--danger';
-      document.getElementById('msStatusBadge').textContent = 'Connected';
-      document.getElementById('msStatusBadge').className = 'conn-option__badge conn-option__badge--connected';
-      document.getElementById('msDesc').textContent = data.accountEmail || 'Outlook inbox connected';
+
+      // Panel – MS card: mark as Active
+      msPill.style.display = '';
+      msPill.textContent = '✓ Active';
+      meta.style.display = '';
+      meta.textContent = email;
+      desc.textContent = 'Your active inbox — emails route through Microsoft Outlook.';
+      msBtn.textContent = 'Disconnect';
+      msBtn.className = 'es-btn es-btn--danger';
+      msCard.classList.add('es-active');
+
+      // Panel – GSB card: shown as inactive alternative
+      gsbCard.classList.remove('es-active');
+      if (gsbPill) gsbPill.style.display = 'none';
+
     } else {
+      // Topbar: restore link icon, collapse button
+      linkIcon.style.display = '';
+      const provSvg = document.getElementById('connectProviderSvg');
+      if (provSvg) provSvg.remove();
+      emailEl.textContent = '';
+      topbarBtn.classList.remove('btn-connect--connected');
+      topbarBtn.title = 'Email connection settings';
       dot.className = 'connect-dot connect-dot--off';
-      document.getElementById('msConnectBtn').textContent = 'Connect';
-      document.getElementById('msConnectBtn').className = 'conn-btn conn-btn--primary';
-      document.getElementById('msStatusBadge').textContent = '';
-      document.getElementById('msDesc').textContent = 'Connect your Outlook or Microsoft 365 inbox';
+
+      // Panel – MS card: show as available to connect
+      msPill.style.display = 'none';
+      meta.style.display = 'none';
+      desc.textContent = 'Connect your Outlook or Microsoft 365 inbox via secure OAuth.';
+      msBtn.textContent = 'Connect';
+      msBtn.className = 'es-btn es-btn--primary';
+      msCard.classList.remove('es-active');
+
+      // Panel – GSB card: restore as Active
+      gsbCard.classList.add('es-active');
+      if (gsbPill) gsbPill.style.display = '';
     }
   } catch(e) { /* offline */ }
 }
 
-document.getElementById('btnConnectInbox').addEventListener('click', () => {
-  document.getElementById('connModal').removeAttribute('hidden');
-  loadConnectionStatus();
-});
-document.getElementById('connModalClose').addEventListener('click', () => {
-  document.getElementById('connModal').setAttribute('hidden', '');
-});
-document.getElementById('connModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('connModal')) document.getElementById('connModal').setAttribute('hidden', '');
-});
+document.getElementById('btnConnectInbox').addEventListener('click', openEsPanel);
+document.getElementById('esBack').addEventListener('click', closeEsPanel);
+
 document.getElementById('msConnectBtn').addEventListener('click', async () => {
   const btn = document.getElementById('msConnectBtn');
   if (btn.textContent === 'Connect') {
@@ -1951,86 +2167,29 @@ document.getElementById('msConnectBtn').addEventListener('click', async () => {
     try {
       await fetch(`${CONNECTOR_BASE}/api/oauth/microsoft/disconnect`, { method: 'POST' });
     } catch(e) {}
-    await loadConnectionStatus();
+    await loadMsStatus();
     btn.disabled = false;
   }
 });
 
+// Close panel on scrim cancel clicks
+document.getElementById('esSwitchCancelBtn').addEventListener('click', () => {
+  document.getElementById('esSwitchScrim').classList.remove('open');
+});
+document.getElementById('esSwitchCancel').addEventListener('click', () => {
+  document.getElementById('esSwitchScrim').classList.remove('open');
+});
+
 // Check URL params for OAuth callback result
+// Just update the topbar silently — don't open the panel automatically
 (function() {
   const p = new URLSearchParams(window.location.search);
   if (p.get('status') === 'connected' && p.get('provider') === 'microsoft') {
     history.replaceState({}, '', window.location.pathname);
-    document.getElementById('connModal').removeAttribute('hidden');
-    loadConnectionStatus();
+    loadMsStatus();
   }
 })();
 
 </script>
-
-<!-- Email Connection Modal -->
-<div class="conn-modal-backdrop" id="connModal" hidden>
-  <div class="conn-modal">
-    <div class="conn-modal__header">
-      <div class="conn-modal__title">Email Connection</div>
-      <div class="conn-modal__sub">Choose how Sendy receives inbound emails for this resort.</div>
-    </div>
-    <div class="conn-modal__body">
-
-      <!-- Sendy Default -->
-      <div class="conn-option">
-        <div class="conn-option__icon conn-option__icon--default">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#065f46" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.41 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.59a16 16 0 0 0 6.49 6.49l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        </div>
-        <div class="conn-option__info">
-          <div class="conn-option__name">Sendy Default</div>
-          <div class="conn-option__desc" id="msDesc">sendy@inbox.getskibots.com</div>
-        </div>
-        <span class="conn-option__badge conn-option__badge--active">Active</span>
-      </div>
-
-      <!-- Microsoft Outlook -->
-      <div class="conn-option">
-        <div class="conn-option__icon conn-option__icon--ms">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="9" height="9" rx="1" fill="#4285f4"/><rect x="13" y="4" width="9" height="9" rx="1" fill="#34a853"/><rect x="2" y="15" width="9" height="9" rx="1" fill="#ea4335"/><rect x="13" y="15" width="9" height="9" rx="1" fill="#fbbc04"/></svg>
-        </div>
-        <div class="conn-option__info">
-          <div class="conn-option__name">Microsoft Outlook</div>
-          <div class="conn-option__desc" id="msDesc">Connect your Outlook or Microsoft 365 inbox</div>
-        </div>
-        <span class="conn-option__badge" id="msStatusBadge"></span>
-        <button class="conn-btn conn-btn--primary" id="msConnectBtn">Connect</button>
-      </div>
-
-      <!-- Gmail -->
-      <div class="conn-option" style="opacity:0.5;">
-        <div class="conn-option__icon conn-option__icon--gmail">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.8"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z"/><path d="m2 6 10 7 10-7"/></svg>
-        </div>
-        <div class="conn-option__info">
-          <div class="conn-option__name">Gmail</div>
-          <div class="conn-option__desc">Connect a Gmail or Google Workspace inbox</div>
-        </div>
-        <span class="conn-option__badge conn-option__badge--soon">Coming soon</span>
-      </div>
-
-      <!-- Custom SMTP -->
-      <div class="conn-option" style="opacity:0.5;">
-        <div class="conn-option__icon conn-option__icon--smtp">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3730a3" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        </div>
-        <div class="conn-option__info">
-          <div class="conn-option__name">Custom SMTP</div>
-          <div class="conn-option__desc">Use your own mail server</div>
-        </div>
-        <span class="conn-option__badge conn-option__badge--soon">Coming soon</span>
-      </div>
-
-    </div>
-    <div style="padding: 0 24px 20px; display:flex; justify-content:flex-end;">
-      <button class="conn-btn" id="connModalClose">Close</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
