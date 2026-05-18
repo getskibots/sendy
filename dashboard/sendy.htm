@@ -227,6 +227,11 @@
 	.thread-row__delete svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
 	.thread-row:hover .thread-row__delete { display: flex; }
 	.thread-row.is-active { background: var(--crimson-50); box-shadow: inset 3px 0 0 var(--crimson); }
+	/* Unread state — blue tint + bold to draw attention to new incoming threads */
+	.thread-row.is-unread { background: #f0f7ff; box-shadow: inset 3px 0 0 var(--blue-active); }
+	.thread-row.is-unread:hover { background: #e5f0fd; }
+	.thread-row.is-unread .thread-row__name { font-weight: 700; }
+	.thread-row.is-unread .thread-row__subject { font-weight: 600; }
 	/* Read state — subtle fade after staff has clicked a thread */
 	.thread-row.is-read .thread-row__name,
 	.thread-row.is-read .thread-row__subject { font-weight: 500; color: var(--ink-2); }
@@ -1031,10 +1036,12 @@ function renderRows() {
 			const pillLabel = t.status === 'ready' ? 'Draft ready' : t.status === 'new' ? 'Drafting…' : t.status;
 			const isSent = t.status === 'sent';
 			const isRead = !isSent && readSet.has(t.id);
-			const dot = !isRead && !isSent && (t.status === 'escalated' ? 'escalated' : (t.status === 'ready' || t.status === 'new' ? 'unread' : ''));
+			const isUnread = !isSent && !isRead;
+			const dot = isUnread && (t.status === 'escalated' ? 'escalated' : 'unread');
 			const classes = ['thread-row'];
 			if (state.activeThreadId === t.id) classes.push('is-active');
 			if (isSent) classes.push('is-sent');
+			else if (isUnread) classes.push('is-unread');
 			else if (isRead) classes.push('is-read');
 			// Auto vs manual indicator for sent threads
 			const sendLog = isSent ? state.sendLogs[t.id] : null;
