@@ -383,6 +383,15 @@
 	.tl-row--in { border-left: 3px solid var(--border-2); }
 	.tl-row--auto { border-left: 3px solid #f59e0b; background: linear-gradient(to right, #fffbeb 0%, #fff 30%); }
 	.tl-row--manual { border-left: 3px solid #10b981; background: linear-gradient(to right, #f0fdf4 0%, #fff 30%); }
+	.tl-avatar--escalated { background: linear-gradient(135deg, #fb7185 0%, #e11d48 100%); color: #fff; font-size: 13px; }
+	.tl-avatar--ai-flag { background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%); color: #fff; font-size: 13px; }
+	.tl-row__tag--escalated { background: #fef2f2; color: #9f1239; border: 1px solid #fecaca; }
+	.tl-row__tag--ai-flag { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
+	.tl-row--escalated { border-left: 3px solid #e11d48; background: linear-gradient(to right, #fff1f2 0%, #fff 30%); }
+	.tl-row--ai-flag { border-left: 3px solid #7c3aed; background: linear-gradient(to right, #f5f3ff 0%, #fff 30%); }
+	.tl-row--event { border-radius: 8px; margin-bottom: 8px; overflow: hidden; padding: 10px 12px; display: flex; align-items: center; gap: 9px; }
+	.tl-row--event .tl-row__meta { flex: 1; min-width: 0; }
+	.tl-row--event .tl-row__body { padding: 4px 0 0 35px; font-size: 12px; color: var(--ink-3); white-space: pre-wrap; word-wrap: break-word; }
 
 	.draft-section { background: #fafafa; border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
 	.draft-section__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -814,7 +823,7 @@ function loadConfig() {
 function saveConfig(c) { localStorage.setItem(CONFIG_KEY, JSON.stringify(c)); }
 function clearConfig() { localStorage.removeItem(CONFIG_KEY); }
 
-const state = { config: null, supabase: null, threads: [], drafts: {}, sendLogs: {}, threadSendLogs: {}, threadInbounds: {}, activeThreadId: null, activeTab: 'all', perfFilter: null, search: '' };
+const state = { config: null, supabase: null, threads: [], drafts: {}, sendLogs: {}, threadSendLogs: {}, threadInbounds: {}, threadEscalationFlags: {}, activeThreadId: null, activeTab: 'all', perfFilter: null, search: '' };
 const AVATAR_COLORS = ['#0ea5e9','#22c55e','#f59e0b','#ec4899','#8b5cf6','#06b6d4','#f97316','#84cc16','#6366f1'];
 
 function initials(name, email) {
@@ -876,7 +885,7 @@ async function fetchAllSendLogsForThread(threadId) {
 		.from('send_logs')
 		.select('id, sent_by, status, created_at, subject, body_text, ses_message_id')
 		.eq('thread_id', threadId)
-		.in('status', ['sent_via_ses', 'sent_via_microsoft'])
+		.in('status', ['sent_via_ses', 'sent_via_microsoft', 'marked_sent'])
 		.order('created_at', { ascending: true });
 	if (error) { console.warn('fetchAllSendLogsForThread failed:', error); return []; }
 	state.threadSendLogs = state.threadSendLogs || {};
@@ -898,15 +907,26 @@ async function fetchAllInboundsForThread(threadId) {
 	state.threadInbounds[threadId] = data || [];
 	return state.threadInbounds[threadId];
 }
+// Fetch escalation flags for a single thread (lazy, cached per thread).
+async function fetchEscalationFlagsForThread(threadId) {
+	const { data, error } = await state.supabase
+		.from('escalation_flags')
+		.select('id, reason, detail, raised_by, created_at')
+		.eq('thread_id', threadId)
+		.order('created_at', { ascending: true });
+	if (error) { console.warn('fetchEscalationFlagsForThread failed:', error); return []; }
+	state.threadEscalationFlags[threadId] = data || [];
+	return state.threadEscalationFlags[threadId];
+}
 // Bulk-fetch the latest send_log per sent thread, so the inbox list can show
 // auto-sent vs manually-sent icons without per-row round-trips.
 async function fetchSendLogsForSentThreads() {
-	const sentIds = state.threads.filter(t => t.status === 'sent').map(t => t.id);
-	if (sentIds.length === 0) { state.sendLogs = {}; return; }
+	const allIds = state.threads.map(t => t.id);
+	if (allIds.length === 0) { state.sendLogs = {}; return; }
 	const { data, error } = await state.supabase
 		.from('send_logs')
 		.select('thread_id, sent_by, status, created_at, ses_message_id')
-		.in('thread_id', sentIds)
+		.in('thread_id', allIds)
 		.in('status', ['sent_via_ses', 'sent_via_microsoft', 'marked_sent'])
 		.order('created_at', { ascending: false });
 	if (error) { console.warn('fetchSendLogs failed:', error); return; }
@@ -1254,18 +1274,42 @@ function bannerFor(draft) {
 function buildTimelineHTML(t) {
 	const logs = (state.threadSendLogs && state.threadSendLogs[t.id]) || [];
 	const inbounds = (state.threadInbounds && state.threadInbounds[t.id]) || [];
+	const escalationFlags = (state.threadEscalationFlags && state.threadEscalationFlags[t.id]) || [];
 	// Build a unified events list
 	const events = [];
 	for (const log of logs) {
 		const isAuto = /^auto:/.test(log.sent_by || '');
+		const isMarked = log.status === 'marked_sent';
 		events.push({
 			type: 'outbound',
 			direction: 'out',
 			isAuto,
+			isMarked,
 			subject: log.subject || '',
 			body: log.body_text || '',
 			when: new Date(log.created_at),
 			sentBy: log.sent_by || 'manual',
+		});
+	}
+	// Escalation flag events (staff manually escalated)
+	for (const flag of escalationFlags) {
+		events.push({
+			type: 'escalation',
+			direction: 'event',
+			detail: flag.detail || '',
+			raisedBy: flag.raised_by || 'staff',
+			when: new Date(flag.created_at),
+		});
+	}
+	// AI-flagged event: if the latest draft has needs_human=true, show it in the timeline
+	const draftList = state.drafts[t.id];
+	const latestDraft = Array.isArray(draftList) ? draftList[0] : null;
+	if (latestDraft && latestDraft.needs_human) {
+		events.push({
+			type: 'ai-flag',
+			direction: 'event',
+			confidence: latestDraft.confidence,
+			when: new Date(latestDraft.created_at),
 		});
 	}
 	// Inbounds: Phase 2 — use inbound_messages rows if we have them.
@@ -1339,9 +1383,36 @@ function buildTimelineHTML(t) {
 			</details>`;
 		}
 
+		// event rows (escalation, ai-flag) — non-collapsible banners
+		if (ev.direction === 'event') {
+			if (ev.type === 'escalation') {
+				const noteHtml = ev.detail ? `<div class="tl-row__body">${esc(ev.detail)}</div>` : '';
+				return `<div class="tl-row tl-row--event tl-row--escalated">
+					<div class="tl-avatar tl-avatar--escalated">🚨</div>
+					<div class="tl-row__meta">
+						<div class="tl-row__from">Escalated <span class="tl-row__email">by ${esc(ev.raisedBy)}</span></div>
+						<div class="tl-row__time">${time}</div>
+					</div>
+					<div class="tl-row__tag tl-row__tag--escalated">Escalated</div>
+				</div>${noteHtml}`;
+			}
+			if (ev.type === 'ai-flag') {
+				const pct = ev.confidence != null ? ` · ${Math.round(ev.confidence * 100)}% confidence` : '';
+				return `<div class="tl-row tl-row--event tl-row--ai-flag">
+					<div class="tl-avatar tl-avatar--ai-flag">⚠️</div>
+					<div class="tl-row__meta">
+						<div class="tl-row__from">AI flagged for human review${pct}</div>
+						<div class="tl-row__time">${time}</div>
+					</div>
+					<div class="tl-row__tag tl-row__tag--ai-flag">AI Flag</div>
+				</div>`;
+			}
+			return '';
+		}
+
 		// outbound
-		const icon = ev.isAuto ? '⚡' : '✓';
-		const tagLabel = ev.isAuto ? 'Auto-sent' : 'Sent';
+		const icon = ev.isAuto ? '⚡' : ev.isMarked ? '📋' : '✓';
+		const tagLabel = ev.isAuto ? 'Auto-sent' : ev.isMarked ? 'Marked sent' : 'Sent';
 		const tagCls = ev.isAuto ? 'tl-row__tag--auto' : 'tl-row__tag--manual';
 		const avCls = ev.isAuto ? 'tl-avatar--auto' : 'tl-avatar--manual';
 		const header = `<div class="tl-row__header">
@@ -1356,8 +1427,9 @@ function buildTimelineHTML(t) {
 		</details>`;
 	}).join('');
 
+	const msgCount = events.filter(ev => ev.direction !== 'event').length;
 	return `<div class="thread-timeline">
-		<div class="thread-timeline__header">Conversation${events.length > 1 ? ` <span class="thread-timeline__count">${events.length} message${events.length === 1 ? '' : 's'}</span>` : ''}</div>
+		<div class="thread-timeline__header">Conversation${msgCount > 1 ? ` <span class="thread-timeline__count">${msgCount} message${msgCount === 1 ? '' : 's'}</span>` : ''}</div>
 		${rows}
 	</div>`;
 }
@@ -1498,8 +1570,8 @@ async function openThread(id) {
 	state.activeThreadId = id;
 	markThreadRead(id);
 	renderRows();
-	// Lazy-fetch send_log + inbound history for the timeline (cached after first load per thread)
-	try { await Promise.all([fetchAllSendLogsForThread(id), fetchAllInboundsForThread(id)]); } catch (e) { console.warn(e); }
+	// Lazy-fetch send_log + inbound history + escalation flags for the timeline (cached after first load per thread)
+	try { await Promise.all([fetchAllSendLogsForThread(id), fetchAllInboundsForThread(id), fetchEscalationFlagsForThread(id)]); } catch (e) { console.warn(e); }
 	await renderDetail();
 }
 function showToast(msg, err) { const t = document.getElementById('toast'); t.classList.toggle('toast--error', !!err); document.getElementById('toast-msg').textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400); }
