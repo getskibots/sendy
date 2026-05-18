@@ -353,6 +353,15 @@ exports.handler = async (event) => {
 
 	for (const record of records) {
 		try {
+			// SQS record from sendy-connector (Microsoft Graph / future Gmail)
+			if (record.eventSource === 'aws:sqs' || record.body) {
+				const payload = JSON.parse(record.body);
+				console.log(`Processing SQS message source=${payload.source} subject=${payload.message?.subject}`);
+				const result = await processMsMessage(payload);
+				results.push(result);
+				continue;
+			}
+
 			if (!record.s3) {
 				console.log('Skipping non-S3 record:', JSON.stringify(record));
 				continue;
@@ -378,6 +387,116 @@ exports.handler = async (event) => {
 
 	return { statusCode: 200, results };
 };
+
+async function processMsMessage(payload) {
+	const msg = payload.message;
+	const guestEmail = (msg.from || '').toLowerCase();
+	const guestName = msg.fromName || '';
+	const subject = msg.subject || '(no subject)';
+	const bodyTextRaw = msg.text || '';
+	const bodyText = stripQuoted(bodyTextRaw);
+	const bodyHtml = msg.html || '';
+	const messageId = msg.rfc822MessageId || msg.id || '';
+	const inReplyTo = msg.inReplyTo || '';
+	const refs = Array.isArray(msg.references) ? msg.references : [];
+	// Use ms: prefix as a synthetic S3 key for idempotency/schema compat
+	const syntheticKey = `ms:${msg.id}`;
+
+	if (!guestEmail) throw new Error('No guest email in SQS payload');
+
+	// Idempotency: skip if already ingested this MS message
+	const { data: existing, error: existErr } = await supabase
+		.from('inbound_messages')
+		.select('thread_id')
+		.eq('raw_s3_key', syntheticKey)
+		.limit(1);
+	if (existErr) throw existErr;
+	if (existing && existing.length > 0) {
+		console.log(`Already ingested ms message=${msg.id}, skipping`);
+		return { skipped: true, thread_id: existing[0].thread_id };
+	}
+
+	const subjectNorm = normalizeSubject(subject);
+	const { threadId, isNewInbound } = await findOrCreateThread({
+		resort_id: RESORT_ID,
+		resort_name: RESORT_NAME,
+		subject,
+		subject_normalized: subjectNorm,
+		guest_email: guestEmail,
+		guest_name: guestName,
+		raw_s3_key: syntheticKey,
+		message_id: messageId,
+		in_reply_to: inReplyTo,
+		ref_header: refs.join(' '),
+		references: refs,
+		body_text: bodyText,
+		body_text_raw: bodyTextRaw,
+		body_html: bodyHtml,
+		headers_json: {},
+	});
+
+	try {
+		const { error: inboundErr } = await supabase.from('inbound_messages').insert({
+			thread_id: threadId,
+			from_email: guestEmail,
+			from_name: guestName || null,
+			subject,
+			body_text: bodyText,
+			body_text_raw: bodyTextRaw,
+			body_html: bodyHtml || null,
+			message_id: messageId || null,
+			in_reply_to: inReplyTo || null,
+			ref_header: refs.join(' ') || null,
+			raw_s3_key: syntheticKey,
+			received_at: msg.receivedAt ? new Date(msg.receivedAt).toISOString() : new Date().toISOString(),
+		});
+		if (inboundErr && inboundErr.code !== '23505') {
+			console.warn('inbound_messages insert failed:', inboundErr.message);
+		}
+	} catch (e) {
+		console.warn('inbound_messages insert exception:', e.message);
+	}
+
+	const history = await loadThreadHistory(threadId, { excludeKey: syntheticKey, limit: 6 });
+	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history });
+
+	let status = 'review';
+	if (BLOCKED_CATEGORIES.includes(draft.category) || draft.needs_human) {
+		status = 'escalated';
+	} else if (draft.confidence >= 0.85) {
+		status = 'ready';
+	}
+
+	const { data: insertedDraft, error: draftErr } = await supabase
+		.from('drafts')
+		.insert({
+			thread_id: threadId,
+			model: OPENAI_MODEL,
+			prompt_version: 'v1',
+			category: draft.category,
+			confidence: draft.confidence,
+			needs_human: draft.needs_human,
+			suggested_subject: draft.suggested_subject,
+			suggested_reply: draft.suggested_reply,
+			internal_notes: draft.internal_notes,
+			raw_response: draft.raw,
+			source: 'ai',
+		})
+		.select()
+		.single();
+	if (draftErr) throw draftErr;
+
+	await supabase.from('threads').update({ status }).eq('id', threadId);
+
+	if (BLOCKED_CATEGORIES.includes(draft.category)) {
+		await supabase.from('escalation_flags').insert({ thread_id: threadId, reason: draft.category, detail: `AI categorized into blocked category. Confidence ${draft.confidence}.`, raised_by: 'ai' });
+	} else if (draft.needs_human) {
+		await supabase.from('escalation_flags').insert({ thread_id: threadId, reason: 'other', detail: 'AI set needs_human=true', raised_by: 'ai' });
+	}
+
+	console.log(`processMsMessage complete thread=${threadId} status=${status} confidence=${draft.confidence}`);
+	return { thread_id: threadId, draft_id: insertedDraft.id, status };
+}
 
 async function processEmail(bucket, key) {
 	// 1. Fetch from S3

@@ -63,20 +63,26 @@ router.post('/webhook', async (req, res) => {
     return;
   }
 
-  // ACK immediately — Graph retries if we don't respond within a few seconds
-  res.status(202).end();
-
+  // In Lambda, async work after res.end() is cut off when the execution context
+  // freezes. Process notifications first, then ACK. Graph allows a few seconds.
   const notifications = req.body?.value ?? [];
-  for (const n of notifications) {
-    // Verify shared secret
-    if (config.microsoft.webhook.clientState && n.clientState !== config.microsoft.webhook.clientState) {
-      logger.warn({ clientState: n.clientState }, 'webhook clientState mismatch — ignoring');
-      continue;
-    }
-    handleNotification(n).catch((err) =>
-      logger.error({ err: err.message, notification: n }, 'failed to process MS notification')
-    );
-  }
+  await Promise.all(
+    notifications
+      .filter((n) => {
+        if (config.microsoft.webhook.clientState && n.clientState !== config.microsoft.webhook.clientState) {
+          logger.warn({ clientState: n.clientState }, 'webhook clientState mismatch — ignoring');
+          return false;
+        }
+        return true;
+      })
+      .map((n) =>
+        handleNotification(n).catch((err) =>
+          logger.error({ err: err.message, notification: n }, 'failed to process MS notification')
+        )
+      )
+  );
+
+  res.status(202).end();
 });
 
 async function handleNotification(notification) {
