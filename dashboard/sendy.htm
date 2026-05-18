@@ -2203,6 +2203,16 @@ document.getElementById('esSwitchCancel').addEventListener('click', () => {
   if (p.get('status') === 'connected' && p.get('provider') === 'microsoft') {
     history.replaceState({}, '', window.location.pathname);
     loadMsStatus();
+  } else if (p.get('status') === 'error' && p.get('provider') === 'microsoft') {
+    const reason = p.get('reason') || 'unknown';
+    history.replaceState({}, '', window.location.pathname);
+    // Show visible error so we can diagnose
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:12px 20px;border-radius:8px;z-index:9999;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.15)';
+    banner.textContent = `Microsoft connection failed: ${reason}`;
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 10000);
+    console.error('[sendy] MS OAuth error:', reason);
   }
 })();
 
