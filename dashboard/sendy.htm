@@ -1694,6 +1694,9 @@ async function sendReply(threadId, draft) {
 		}
 		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
 		showToast('Sent!');
+		playManualSentChime();
+		_suppressAutoSentChime = true;
+		setTimeout(() => { _suppressAutoSentChime = false; }, 3000);
 	} catch (e) {
 		showToast('Send failed: ' + e.message, true);
 		if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg> Send'; }
@@ -1836,40 +1839,71 @@ async function sendFollowup(threadId, subject, body) {
 // No audio file embedded — saves ~50KB and works in all modern browsers.
 let _audioCtx = null;
 let _recentlyChimedAt = 0;
-function playChime() {
-	// Throttle: don't play more than once per 800ms (handles poll + realtime racing)
+let _suppressAutoSentChime = false;
+
+function _getAudioCtx() {
+	if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+	if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
+	return _audioCtx;
+}
+
+// Inbound email — single soft descending note (A5). Gentle, informational.
+function playInboundChime() {
 	const now = Date.now();
 	if (now - _recentlyChimedAt < 800) return;
 	_recentlyChimedAt = now;
 	try {
-		if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-		const ctx = _audioCtx;
-		// Browsers suspend AudioContext until a user gesture has occurred on the page.
-		// First chime after page-load may be silent until staff clicks anywhere. Acceptable.
-		if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-		const startAt = ctx.currentTime;
-		// Note 1: G5 (784 Hz)
-		const o1 = ctx.createOscillator();
-		const g1 = ctx.createGain();
-		o1.type = 'sine'; o1.frequency.value = 784;
-		o1.connect(g1); g1.connect(ctx.destination);
-		g1.gain.setValueAtTime(0, startAt);
-		g1.gain.linearRampToValueAtTime(0.32, startAt + 0.01);
-		g1.gain.exponentialRampToValueAtTime(0.001, startAt + 0.45);
-		o1.start(startAt); o1.stop(startAt + 0.5);
-		// Note 2: C6 (1047 Hz), 120ms later
-		const o2 = ctx.createOscillator();
-		const g2 = ctx.createGain();
-		o2.type = 'sine'; o2.frequency.value = 1047;
-		o2.connect(g2); g2.connect(ctx.destination);
-		g2.gain.setValueAtTime(0, startAt + 0.12);
-		g2.gain.linearRampToValueAtTime(0.32, startAt + 0.13);
-		g2.gain.exponentialRampToValueAtTime(0.001, startAt + 0.55);
-		o2.start(startAt + 0.12); o2.stop(startAt + 0.6);
-	} catch (e) {
-		console.warn('Chime failed:', e);
-	}
+		const ctx = _getAudioCtx();
+		const t = ctx.currentTime;
+		const o = ctx.createOscillator(), g = ctx.createGain();
+		o.type = 'sine'; o.frequency.value = 880; // A5
+		o.connect(g); g.connect(ctx.destination);
+		g.gain.setValueAtTime(0, t);
+		g.gain.linearRampToValueAtTime(0.2, t + 0.01);
+		g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+		o.start(t); o.stop(t + 0.45);
+	} catch(e) { console.warn('Chime failed:', e); }
 }
+
+// Manually sent — single clean ascending note (E5). Positive confirmation.
+function playManualSentChime() {
+	try {
+		const ctx = _getAudioCtx();
+		const t = ctx.currentTime;
+		const o = ctx.createOscillator(), g = ctx.createGain();
+		o.type = 'sine'; o.frequency.value = 659; // E5
+		o.connect(g); g.connect(ctx.destination);
+		g.gain.setValueAtTime(0, t);
+		g.gain.linearRampToValueAtTime(0.25, t + 0.01);
+		g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+		o.start(t); o.stop(t + 0.4);
+	} catch(e) { console.warn('Chime failed:', e); }
+}
+
+// Auto-sent by AI — two-note bright ascending chime (G5 → E6). Celebratory.
+function playAutoSentChime() {
+	try {
+		const ctx = _getAudioCtx();
+		const t = ctx.currentTime;
+		const o1 = ctx.createOscillator(), g1 = ctx.createGain();
+		o1.type = 'sine'; o1.frequency.value = 784; // G5
+		o1.connect(g1); g1.connect(ctx.destination);
+		g1.gain.setValueAtTime(0, t);
+		g1.gain.linearRampToValueAtTime(0.3, t + 0.01);
+		g1.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+		o1.start(t); o1.stop(t + 0.45);
+		const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+		o2.type = 'sine'; o2.frequency.value = 1319; // E6
+		o2.connect(g2); g2.connect(ctx.destination);
+		g2.gain.setValueAtTime(0, t + 0.15);
+		g2.gain.linearRampToValueAtTime(0.3, t + 0.16);
+		g2.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+		o2.start(t + 0.15); o2.stop(t + 0.6);
+	} catch(e) { console.warn('Chime failed:', e); }
+}
+
+// Alias — keeps existing poll + realtime INSERT callers working
+function playChime() { playInboundChime(); }
 
 // ============ REALTIME SUBSCRIPTION ============
 // Sub-second updates via Supabase websocket; 15s poll above is the fallback.
@@ -1906,6 +1940,12 @@ function startRealtime() {
 			}
 			await fetchThreads();
 			renderTabs(); renderRows(); renderStats();
+			// Play auto-sent chime if thread just flipped to 'sent' via auto-send (not manual)
+			const justFlippedToSent = payload.new.status === 'sent' && payload.old?.status !== 'sent';
+			if (justFlippedToSent && !_suppressAutoSentChime) {
+				playAutoSentChime();
+				showToast('Auto-sent ✓');
+			}
 		})
 		.subscribe();
 }
