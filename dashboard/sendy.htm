@@ -260,7 +260,7 @@
 		50% { opacity: 0.55; }
 	}
 
-	.inbox__detail { display: flex; flex-direction: column; min-width: 0; }
+	.inbox__detail { display: flex; flex-direction: column; min-width: 0; height: 100%; overflow: hidden; }
 	.detail-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--mute); font-size: 13px; flex-direction: column; gap: 12px; padding: 40px; text-align: center; }
 	.detail-empty svg { width: 40px; height: 40px; stroke: var(--mute-2); stroke-width: 1.5; fill: none; }
 	.detail-empty__hint { font-size: 12px; color: var(--mute-2); max-width: 320px; line-height: 1.6; }
@@ -309,7 +309,7 @@
 	.followup-composer__input, .followup-composer__textarea { width: 100%; padding: 10px 12px; font-family: var(--font-ui); font-size: 13px; border: 1px solid var(--border-2); border-radius: 7px; background: #fff; color: var(--ink); box-sizing: border-box; }
 	.followup-composer__textarea { min-height: 150px; resize: vertical; line-height: 1.6; }
 	.followup-composer__actions { display: flex; gap: 8px; justify-content: flex-end; }
-	.detail-body { flex: 1; overflow-y: auto; padding: 18px 24px 24px; }
+	.detail-body { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px 24px; }
 
 	.ai-banner { border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 18px; background: linear-gradient(95deg, var(--crimson-50), #ffeaea, var(--crimson-50)); border: 1px solid #f7d4d4; }
 	.ai-banner__spark { width: 16px; height: 16px; flex-shrink: 0; }
@@ -1355,7 +1355,7 @@ async function renderDetail() {
 			<div class="detail-header__info">
 				<div class="detail-header__name">${esc(t.guest_name || t.guest_email)}${sentBadgeFor(t)}</div>
 				<div class="detail-header__email">${esc(t.guest_email)}</div>
-				<div class="detail-header__to">To: sendy@inbox.getskibots.com</div>
+				<div class="detail-header__to">To: ${esc(t.resort_email || 'sendy@inbox.getskibots.com')}</div>
 			</div>
 		</div>
 		<div class="detail-header__date">
