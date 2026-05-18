@@ -84,7 +84,7 @@
 	.es-content { max-width: 720px; margin: 0 auto; padding: 0 40px; }
 	.es-h1 { font-family: var(--font-display); font-weight: 500; font-size: 30px; line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 10px; color: #0F172A; }
 	.es-lede { font-size: 14px; line-height: 1.55; color: #64748B; margin: 0 0 28px; }
-	.es-section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: var(--blue-active); margin: 0 0 14px; text-transform: uppercase; }
+	.es-section-label { font-size: 12px; font-weight: 600; letter-spacing: 0.10em; color: var(--blue-active); margin: 0 0 14px; text-transform: uppercase; }
 	.es-section-label.spaced { margin-top: 28px; }
 	.es-card { display: flex; align-items: center; gap: 18px; background: #fff; border: 1px solid #E5E9F2; border-radius: 14px; padding: 18px 20px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); transition: box-shadow 160ms, border-color 160ms; }
 	.es-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,0.07); }
@@ -97,9 +97,9 @@
 	.es-card-desc { font-size: 13px; line-height: 1.5; color: #64748B; }
 	.es-card-meta { font-size: 12px; color: #64748B; font-family: var(--font-mono); margin-top: 2px; }
 	.es-card-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
-	.es-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.02em; }
+	.es-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.02em; }
 	.es-pill--connected { color: #15803D; background: #DCFCE7; }
-	.es-pill--recommended { color: #92400E; background: #FEF3C7; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; }
+	.es-pill--recommended { color: #92400E; background: #FEF3C7; text-transform: uppercase; letter-spacing: 0.04em; font-size: 12px; }
 	.es-pill--soon { color: #3730A3; background: #EEF2FF; }
 	.es-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; font-family: var(--font-ui); cursor: pointer; border: none; transition: filter 140ms, transform 80ms; }
 	.es-btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -639,6 +639,9 @@
       Back to inbox
     </button>
     <span class="es-topbar-title">Email Settings</span>
+    <button class="es-back" id="esPanelClose" style="margin-left:auto;" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
   </div>
   <div class="es-body">
     <div class="es-content">
@@ -655,8 +658,8 @@
             <span class="es-card-title">Get Ski Bots Hosted</span>
             <span class="es-pill es-pill--recommended">Recommended</span>
           </div>
-          <div class="es-card-desc">Replies send from your dedicated resort address on our managed infrastructure — zero configuration required.</div>
-          <div class="es-card-meta">sendy@inbox.getskibots.com</div>
+          <div class="es-card-desc">Send and receive through your dedicated <strong>@getskimail.com</strong> address — fully managed by Get Ski Bots, zero configuration required.</div>
+          <div class="es-card-meta">yourresort@getskimail.com</div>
         </div>
         <div class="es-card-actions">
           <span class="es-pill es-pill--connected" id="gsbActivePill">✓ Active</span>
@@ -2156,6 +2159,7 @@ async function loadMsStatus() {
 
 document.getElementById('btnConnectInbox').addEventListener('click', openEsPanel);
 document.getElementById('esBack').addEventListener('click', closeEsPanel);
+document.getElementById('esPanelClose').addEventListener('click', closeEsPanel);
 
 document.getElementById('msConnectBtn').addEventListener('click', async () => {
   const btn = document.getElementById('msConnectBtn');

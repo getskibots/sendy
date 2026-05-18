@@ -521,6 +521,15 @@ async function processEmail(bucket, key) {
 		throw new Error('No guest email address found in MIME');
 	}
 
+	// 2b. Identify resort from To: address (getresortmail.com catch-all routing)
+	const toAddrs = parsed.to && parsed.to.value ? parsed.to.value : [];
+	const toEmailAddr = toAddrs[0] ? (toAddrs[0].address || '').toLowerCase() : '';
+	const resort = await lookupResortByToAddress(toEmailAddr);
+	const resortId   = resort ? resort.id           : RESORT_ID;
+	const resortName = resort ? resort.name         : RESORT_NAME;
+	const fromAddress = resort ? resort.email_address : FROM_ADDRESS;
+	console.log(`Resort resolved: id=${resortId} name="${resortName}" from=${fromAddress}`);
+
 	// 3. Idempotency: skip if we've already ingested this S3 key
 	const { data: existing, error: existErr } = await supabase
 		.from('threads')
@@ -536,8 +545,8 @@ async function processEmail(bucket, key) {
 	// 4. Find or create thread (header-based threading takes priority over subject matching)
 	const subjectNorm = normalizeSubject(subject);
 	const { threadId, isNewInbound } = await findOrCreateThread({
-		resort_id: RESORT_ID,
-		resort_name: RESORT_NAME,
+		resort_id: resortId,
+		resort_name: resortName,
 		subject,
 		subject_normalized: subjectNorm,
 		guest_email: guestEmail,
@@ -587,7 +596,7 @@ async function processEmail(bucket, key) {
 	//    inbound, not as part of the backlog.
 	const history = await loadThreadHistory(threadId, { excludeKey: key, limit: 6 });
 	const draft = await callOpenAI({
-		resortName: RESORT_NAME,
+		resortName,
 		guestName,
 		guestEmail,
 		subject,
@@ -672,6 +681,7 @@ async function processEmail(bucket, key) {
 				inReplyTo: messageId,
 				referencesHeader: [...refs, messageId].filter(Boolean).join(' '),
 				sentBy: 'auto:lambda',
+				fromAddress,
 			});
 			autoSent = true;
 		}
@@ -1361,14 +1371,39 @@ async function isAutoSendEnabled() {
 }
 
 // Build a properly-quoted From header: '"Name" <email>' or just '<email>'.
-function buildFromHeader() {
+// Accepts an optional address override — used when routing per-resort via getresortmail.com.
+function buildFromHeader(address) {
+	const addr = address || FROM_ADDRESS;
 	if (FROM_NAME && FROM_NAME.trim()) {
-		return `"${FROM_NAME.replace(/"/g, '')}" <${FROM_ADDRESS}>`;
+		return `"${FROM_NAME.replace(/"/g, '')}" <${addr}>`;
 	}
-	return FROM_ADDRESS;
+	return addr;
 }
 
-async function sendViaSES({ threadId, draftId, toEmail, toName, subject, bodyText, inReplyTo, referencesHeader, sentBy }) {
+// Resolve resort from a getresortmail.com To: address.
+// Returns { id, name, inbox_address } or null if not found / not a getresortmail.com address.
+async function lookupResortByToAddress(toEmail) {
+	if (!toEmail || !toEmail.includes('getresortmail.com')) return null;
+	const handle = toEmail.split('@')[0];
+	if (!handle) return null;
+	try {
+		const { data, error } = await supabase
+			.from('accounts')
+			.select('id, name, email_address')
+			.eq('handle', handle)
+			.single();
+		if (error || !data) {
+			console.warn(`No resort found for inbox_handle=${handle}`);
+			return null;
+		}
+		return data;
+	} catch (e) {
+		console.warn('lookupResortByToAddress failed:', e.message);
+		return null;
+	}
+}
+
+async function sendViaSES({ threadId, draftId, toEmail, toName, subject, bodyText, inReplyTo, referencesHeader, sentBy, fromAddress }) {
 	if (!toEmail) throw new Error('Missing recipient email');
 	if (!subject) throw new Error('Missing subject');
 	if (!bodyText) throw new Error('Missing body');
@@ -1431,7 +1466,7 @@ async function sendViaSES({ threadId, draftId, toEmail, toName, subject, bodyTex
 	}
 
 	const cmd = new SendEmailCommand({
-		FromEmailAddress: buildFromHeader(),
+		FromEmailAddress: buildFromHeader(fromAddress),
 		Destination: { ToAddresses: [toAddress] },
 		ReplyToAddresses: [REPLY_TO_ADDRESS],
 		Content: {
@@ -1552,6 +1587,17 @@ exports.sendReply = async (event) => {
 			.single();
 		if (tErr || !thread) return jsonResponse(404, { error: 'Thread not found' });
 
+		// Resolve from address from accounts table
+		let fromAddress = FROM_ADDRESS;
+		if (thread.resort_id) {
+			const { data: account } = await supabase
+				.from('accounts')
+				.select('email_address')
+				.eq('id', thread.resort_id)
+				.single();
+			if (account?.email_address) fromAddress = account.email_address;
+		}
+
 		// Load latest draft if no override body provided
 		let subject = overrideSubject;
 		let bodyText = overrideBody;
@@ -1604,6 +1650,7 @@ exports.sendReply = async (event) => {
 			inReplyTo,
 			referencesHeader,
 			sentBy,
+			fromAddress,
 		});
 
 		return jsonResponse(200, {
