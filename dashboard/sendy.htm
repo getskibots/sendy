@@ -658,8 +658,8 @@
             <span class="es-card-title">Get Ski Bots Hosted</span>
             <span class="es-pill es-pill--recommended">Recommended</span>
           </div>
-          <div class="es-card-desc">Send and receive through your dedicated <strong>@getskimail.com</strong> address — fully managed by Get Ski Bots, zero configuration required.</div>
-          <div class="es-card-meta">yourresort@getskimail.com</div>
+          <div class="es-card-desc">Send and receive through your dedicated <strong>@getresortmail.com</strong> address — fully managed by Get Ski Bots, zero configuration required.</div>
+          <div class="es-card-meta" id="gsbEmailMeta">yourresort@getresortmail.com</div>
         </div>
         <div class="es-card-actions">
           <span class="es-pill es-pill--connected" id="gsbActivePill">✓ Active</span>
@@ -2067,9 +2067,21 @@ initialize();
 // ── Email Settings Panel ────────────────────────────────────────────────────
 const CONNECTOR_BASE = 'https://kpz4fvcdle.execute-api.us-east-1.amazonaws.com';
 
-function openEsPanel() {
+async function openEsPanel() {
   document.getElementById('esPanel').classList.add('open');
   loadMsStatus();
+  // Load account's assigned getresortmail.com address
+  try {
+    const { data } = await state.supabase
+      .from('accounts')
+      .select('email_address')
+      .order('id', { ascending: true })
+      .limit(1)
+      .single();
+    if (data?.email_address) {
+      document.getElementById('gsbEmailMeta').textContent = data.email_address;
+    }
+  } catch(e) { /* offline / no account yet */ }
 }
 function closeEsPanel() {
   document.getElementById('esPanel').classList.remove('open');
