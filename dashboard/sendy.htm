@@ -825,7 +825,7 @@ function loadConfig() {
 function saveConfig(c) { localStorage.setItem(CONFIG_KEY, JSON.stringify(c)); }
 function clearConfig() { localStorage.removeItem(CONFIG_KEY); }
 
-const state = { config: null, supabase: null, threads: [], drafts: {}, sendLogs: {}, threadSendLogs: {}, threadInbounds: {}, threadEscalationFlags: {}, activeThreadId: null, activeTab: 'all', perfFilter: null, search: '' };
+const state = { config: null, supabase: null, threads: [], drafts: {}, sendLogs: {}, sendLogHistory: [], threadSendLogs: {}, threadInbounds: {}, threadEscalationFlags: {}, activeThreadId: null, activeTab: 'all', perfFilter: null, search: '', dateWindow: '7d' };
 const AVATAR_COLORS = ['#0ea5e9','#22c55e','#f59e0b','#ec4899','#8b5cf6','#06b6d4','#f97316','#84cc16','#6366f1'];
 
 function initials(name, email) {
@@ -920,19 +920,30 @@ async function fetchEscalationFlagsForThread(threadId) {
 	state.threadEscalationFlags[threadId] = data || [];
 	return state.threadEscalationFlags[threadId];
 }
-// Bulk-fetch the latest send_log per sent thread, so the inbox list can show
-// auto-sent vs manually-sent icons without per-row round-trips.
+// Returns the ISO timestamp for the start of the current date window.
+function getDateWindowStart() {
+	const now = new Date();
+	if (state.dateWindow === '30d') return new Date(now - 30 * 86400000).toISOString();
+	return new Date(now - 7 * 86400000).toISOString(); // default: 7d
+}
+// Bulk-fetch send_logs within the current date window.
+// - state.sendLogHistory: ALL rows in window → used for true historical stat counts
+// - state.sendLogs: latest row per thread → used for inbox row auto/manual icons
 async function fetchSendLogsForSentThreads() {
 	const allIds = state.threads.map(t => t.id);
-	if (allIds.length === 0) { state.sendLogs = {}; return; }
+	if (allIds.length === 0) { state.sendLogs = {}; state.sendLogHistory = []; return; }
+	const since = getDateWindowStart();
 	const { data, error } = await state.supabase
 		.from('send_logs')
 		.select('thread_id, sent_by, status, created_at, ses_message_id')
 		.in('thread_id', allIds)
 		.in('status', ['sent_via_ses', 'sent_via_microsoft', 'marked_sent'])
+		.gte('created_at', since)
 		.order('created_at', { ascending: false });
 	if (error) { console.warn('fetchSendLogs failed:', error); return; }
-	// Keep the latest log per thread (first row encountered since sorted desc)
+	// All rows for stats
+	state.sendLogHistory = data || [];
+	// Latest per thread for inbox icons
 	const latest = {};
 	for (const row of (data || [])) {
 		if (!latest[row.thread_id]) latest[row.thread_id] = row;
@@ -1181,7 +1192,8 @@ function renderPerf() {
 	// Active = not soft-deleted. Used for all "live workflow" counts.
 	const threads = state.threads.filter(t => !t.deleted_at);
 	const deletedCount = state.threads.length - threads.length;
-	const logs = Object.values(state.sendLogs);
+	// Use sendLogHistory for true historical counts within the date window (all sends, not latest-per-thread)
+	const logs = state.sendLogHistory || [];
 	const total = threads.length;
 	const sentTotal = logs.length;
 	const autoCount = logs.filter(l => /^auto:/.test(l.sent_by || '')).length;
@@ -1229,13 +1241,14 @@ function renderPerf() {
 
 	// Subhead next to "Inbox overview" — quick story signal
 	const sub = document.getElementById('overview-sub');
+	const winLabel = state.dateWindow === '30d' ? 'last 30 days' : 'last 7 days';
 	if (sub) {
 		if (sentTotal === 0) {
 			sub.textContent = `${total} thread${total === 1 ? '' : 's'} · ${draftsCount} awaiting review`;
 		} else if (autoCount > 0) {
-			sub.innerHTML = `${autoCount} of ${sentTotal} sent automatically · <strong style="color:var(--ink-2);">${autoPct}%</strong> auto-handled`;
+			sub.innerHTML = `${autoCount} of ${sentTotal} sent automatically · <strong style="color:var(--ink-2);">${autoPct}%</strong> auto-handled · ${winLabel}`;
 		} else {
-			sub.textContent = `${sentTotal} sent · ${draftsCount} awaiting review`;
+			sub.textContent = `${sentTotal} sent · ${draftsCount} awaiting review · ${winLabel}`;
 		}
 	}
 }
@@ -2140,6 +2153,18 @@ document.getElementById('config-reset').addEventListener('click', () => {
 	initialize();
 });
 document.getElementById('search').addEventListener('input', e => { state.search = e.target.value; renderRows(); });
+
+// Date window pills — switch window, re-fetch send log history, re-render stats
+document.querySelectorAll('.date-pill').forEach(pill => {
+	pill.addEventListener('click', async () => {
+		const label = pill.textContent.trim();
+		state.dateWindow = label === 'Last 30 days' ? '30d' : '7d';
+		document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('date-pill--active'));
+		pill.classList.add('date-pill--active');
+		await fetchSendLogsForSentThreads();
+		renderPerf();
+	});
+});
 
 // ============ AUTO-SEND TOGGLE ============
 const AUTO_SEND_KEY = 'auto_send_enabled';
