@@ -1,0 +1,21 @@
+{
+  "name": "sendy-connector",
+  "version": "1.0.0",
+  "description": "Microsoft Graph OAuth + webhook connector for Sendy",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^2.16.2",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@supabase/supabase-js": "^2.45.4",
+    "@vendia/serverless-express": "^4.12.6",
+    "@aws-sdk/client-sqs": "^3.700.0",
+    "express": "^4.21.1",
+    "isomorphic-fetch": "^3.0.0",
+    "pino": "^9.5.0",
+    "zod": "^3.23.8"
+  }
+}
