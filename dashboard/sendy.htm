@@ -146,6 +146,7 @@
 	.overview__title { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--ink); margin: 0; letter-spacing: -0.01em; }
 	.overview__sub { font-size: 11px; color: var(--mute); font-weight: 500; }
 	.overview__body { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; padding: 0; }
+	@media (max-width: 900px) { .overview__body { grid-template-columns: repeat(3, 1fr); } .overview__body .perf-stat:nth-child(3) { border-right: none; } .overview__body .perf-stat:nth-child(n+4) { border-top: 1px solid var(--border); } }
 	.perf-stat { padding: 14px 14px; border-right: 1px solid var(--border); background: #fff; border-top: none; border-bottom: none; border-left: none; cursor: pointer; text-align: left; font-family: var(--font-ui); position: relative; transition: background 0.12s ease; }
 	.perf-stat:last-child { border-right: none; }
 	.perf-stat:hover { background: var(--bg-2); }
@@ -819,13 +820,14 @@ function initials(name, email) {
 function colorFor(seed) { let h = 0; for (let i=0;i<(seed||'').length;i++) h = (h*31 + seed.charCodeAt(i)) >>> 0; return AVATAR_COLORS[h % AVATAR_COLORS.length]; }
 function relTime(date) {
 	const now = new Date();
+	const t = date.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
 	const tod = date.toDateString() === now.toDateString();
 	const yest = date.toDateString() === new Date(now - 86400000).toDateString();
 	const thisWeek = (now - date) < 6 * 86400000;
-	if (tod) return date.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
-	if (yest) return 'Yesterday';
-	if (thisWeek) return date.toLocaleDateString('en-US', {weekday:'short'});
-	return date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+	if (tod) return t;
+	if (yest) return `Yesterday ${t}`;
+	if (thisWeek) return `${date.toLocaleDateString('en-US', {weekday:'short'})} ${t}`;
+	return `${date.toLocaleDateString('en-US', {month:'short', day:'numeric'})} · ${t}`;
 }
 
 function agingBadge(date, status) {
@@ -852,6 +854,8 @@ async function fetchThreads() {
 	}));
 	// Pull latest send_log per sent thread so the inbox can show auto/manual icons
 	await fetchSendLogsForSentThreads();
+	// Pre-load all draft confidence scores so the Avg AI Confidence stat is accurate on page load
+	await fetchLatestDraftPerThread();
 	return state.threads;
 }
 async function fetchDrafts(threadId) {
@@ -898,7 +902,7 @@ async function fetchSendLogsForSentThreads() {
 		.from('send_logs')
 		.select('thread_id, sent_by, status, created_at, ses_message_id')
 		.in('thread_id', sentIds)
-		.in('status', ['sent_via_ses', 'sent_via_microsoft'])
+		.in('status', ['sent_via_ses', 'sent_via_microsoft', 'marked_sent'])
 		.order('created_at', { ascending: false });
 	if (error) { console.warn('fetchSendLogs failed:', error); return; }
 	// Keep the latest log per thread (first row encountered since sorted desc)
