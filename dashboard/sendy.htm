@@ -1727,12 +1727,20 @@ async function deleteThread(threadId) {
 	const ok = confirm(`Delete this thread from "${guestLabel}"?\n\nIt will be hidden from views but can be restored from the trash filter.`);
 	if (!ok) return;
 	try {
-		await updateThread(threadId, { deleted_at: new Date().toISOString() });
-		// If the active thread is the one we just deleted, deselect
+		// Optimistic: remove from state immediately so UI updates instantly
+		t.deleted_at = new Date().toISOString();
 		if (state.activeThreadId === threadId) state.activeThreadId = null;
-		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
+		renderTabs(); renderRows(); renderStats(); await renderDetail();
+		// Then persist to DB and re-sync
+		await updateThread(threadId, { deleted_at: t.deleted_at });
+		await fetchThreads(); renderTabs(); renderRows(); renderStats();
 		showToast('Thread deleted · view in trash to restore');
-	} catch (e) { showToast('Delete failed: ' + e.message, true); }
+	} catch (e) {
+		// Rollback optimistic update
+		t.deleted_at = null;
+		renderRows();
+		showToast('Delete failed: ' + e.message, true);
+	}
 }
 
 async function restoreThread(threadId) {
