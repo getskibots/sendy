@@ -1348,7 +1348,7 @@ async function renderDetail() {
 			detail.innerHTML = `<div class="detail-empty">
 				<svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
 				<div>Select a thread to review the draft</div>
-				<div class="detail-empty__hint">Or forward another guest email to <span style="color:var(--crimson);font-family:var(--font-mono);font-size:11px;">sendy@inbox.getskibots.com</span></div>
+				<div class="detail-empty__hint">Or forward another guest email to <span style="color:var(--crimson);font-family:var(--font-mono);font-size:11px;" id="emptyStateEmail">jacksonhole@getresortmail.com</span></div>
 			</div>`;
 		}
 		return;
@@ -1951,6 +1951,14 @@ async function initialize() {
 		startRealtime();
 		// Hydrate the auto-send pill from system_settings
 		try { renderAutoSendPill(await fetchAutoSend()); } catch (e) { console.error('Pill hydration failed:', e); }
+		// Hydrate resort email address for empty state hint
+		try {
+			const { data: acct } = await state.supabase.from('accounts').select('email_address').order('id', { ascending: true }).limit(1).single();
+			if (acct?.email_address) {
+				const el = document.getElementById('emptyStateEmail');
+				if (el) el.textContent = acct.email_address;
+			}
+		} catch (e) { /* offline */ }
 	} catch (e) {
 		console.error(e); setConn('error', 'Connection failed');
 		showToast('Connection failed: ' + (e.message || 'check config'), true);
