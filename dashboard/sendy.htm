@@ -1693,7 +1693,7 @@ async function sendReply(threadId, draft) {
 			throw new Error(data.error || ('HTTP ' + res.status));
 		}
 		await fetchThreads(); renderTabs(); renderRows(); renderStats(); await renderDetail();
-		showToast('Sent via SES');
+		showToast('Sent!');
 	} catch (e) {
 		showToast('Send failed: ' + e.message, true);
 		if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg> Send'; }
