@@ -393,9 +393,11 @@ async function processMsMessage(payload) {
 	const guestEmail = (msg.from || '').toLowerCase();
 	const guestName = msg.fromName || '';
 	const subject = msg.subject || '(no subject)';
-	const bodyTextRaw = msg.text || '';
-	const bodyText = stripQuoted(bodyTextRaw);
 	const bodyHtml = msg.html || '';
+	// MS Graph delivers HTML-only emails (msg.text is null). Fall back to stripping HTML tags.
+	const bodyTextRaw = msg.text || (bodyHtml ? bodyHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+		.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim() : '');
+	const bodyText = stripQuoted(bodyTextRaw);
 	const messageId = msg.rfc822MessageId || msg.id || '';
 	const inReplyTo = msg.inReplyTo || '';
 	const refs = Array.isArray(msg.references) ? msg.references : [];
