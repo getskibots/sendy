@@ -960,7 +960,7 @@ function filteredThreads() {
 			const pa = STATUS_PRI[a.status] ?? 3;
 			const pb = STATUS_PRI[b.status] ?? 3;
 			if (pa !== pb) return pa - pb;
-			if (pa <= 1) return a.last_inbound_at - b.last_inbound_at; // oldest waiting = most urgent
+			if (pa <= 1) return b.last_inbound_at - a.last_inbound_at; // newest first
 			return (b.last_outbound_at || b.updated_at) - (a.last_outbound_at || a.updated_at); // newest sent first
 		});
 	}
