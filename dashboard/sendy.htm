@@ -220,6 +220,10 @@
 	.perf-filter-banner__clear:hover { background: rgba(139,29,29,0.1); }
 	.thread-row { display: grid; grid-template-columns: 36px 1fr; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; position: relative; }
 	.thread-row:hover { background: var(--bg-2); }
+	.thread-row__delete { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: var(--mute); display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 2; transition: background 0.1s, color 0.1s; }
+	.thread-row__delete:hover { background: #fef2f2; color: var(--rose); border-color: #fca5a5; }
+	.thread-row__delete svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
+	.thread-row:hover .thread-row__delete { display: flex; }
 	.thread-row.is-active { background: var(--crimson-50); box-shadow: inset 3px 0 0 var(--crimson); }
 	/* Read state — subtle fade after staff has clicked a thread */
 	.thread-row.is-read .thread-row__name,
@@ -1027,11 +1031,19 @@ function renderRows() {
 					<div class="thread-row__snippet">${esc(snippet)}</div>
 					<span class="thread-row__pill thread-row__pill--${pill}">${pillLabel}</span>
 				</div>
+				<button class="thread-row__delete" data-delete-id="${t.id}" title="Delete thread"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
 				${sentIndicator || (dot ? `<div class="thread-row__dot thread-row__dot--${dot}"></div>` : '')}
 			</div>`;
 		}).join('');
 	document.getElementById('rows').innerHTML = html;
-	document.querySelectorAll('.thread-row').forEach(el => el.addEventListener('click', () => openThread(el.dataset.id)));
+	document.querySelectorAll('.thread-row').forEach(el => el.addEventListener('click', (e) => {
+		if (e.target.closest('.thread-row__delete')) return; // let delete button handle it
+		openThread(el.dataset.id);
+	}));
+	document.querySelectorAll('.thread-row__delete').forEach(btn => btn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		deleteThread(btn.dataset.deleteId);
+	}));
 	renderPerfFilterBanner();
 	renderListFooter();
 	renderPerf();
