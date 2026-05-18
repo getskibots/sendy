@@ -167,7 +167,9 @@
 	.perf-stat--escalated.has-urgency:not(.is-active) .perf-stat__num { color: var(--rose); }
 	.perf-stat__val { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; line-height: 1.1; display: flex; align-items: baseline; gap: 8px; }
 	.perf-stat__num { font-family: var(--font-display); }
-	.perf-stat__pct { font-family: var(--font-ui); font-size: 12px; font-weight: 500; color: var(--mute); }
+	.perf-stat__pct { font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--mute); }
+	.perf-stat__pct--good { color: #059669; }
+	.perf-stat__pct--warn { color: #b45309; }
 	/* Auto-send slider toggle */
 	.autosend-wrap { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink-2); margin-left: 12px; vertical-align: middle; }
 	.autosend-wrap__label { letter-spacing: 0.01em; user-select: none; }
@@ -1202,8 +1204,10 @@ function renderPerf() {
 	const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 	setHTML('perf-drafts', `<span class="perf-stat__num">${draftsCount}</span>`);
 	setHTML('perf-escalated', `<span class="perf-stat__num">${escalatedCount}</span>`);
-	setHTML('perf-auto', `<span class="perf-stat__num">${autoCount}</span>${sentTotal > 0 ? `<span class="perf-stat__pct">(${autoPct}% of sent)</span>` : ''}`);
-	setHTML('perf-manual', `<span class="perf-stat__num">${manualCount}</span>`);
+	const manualPct = sentTotal > 0 ? 100 - autoPct : 0;
+	const autoPctCls = sentTotal === 0 ? '' : autoPct >= 70 ? 'perf-stat__pct--good' : autoPct < 40 ? 'perf-stat__pct--warn' : '';
+	setHTML('perf-auto', `<span class="perf-stat__num">${autoCount}</span>${sentTotal > 0 ? `<span class="perf-stat__pct ${autoPctCls}">${autoPct}%</span>` : ''}`);
+	setHTML('perf-manual', `<span class="perf-stat__num">${manualCount}</span>${sentTotal > 0 ? `<span class="perf-stat__pct">${manualPct}%</span>` : ''}`);
 	setHTML('perf-conf', avgConf !== null ? `<span class="perf-stat__num">${avgConf}%</span>` : '<span class="perf-stat__num">—</span>');
 	setHTML('perf-total', `<span class="perf-stat__num">${total}</span>`);
 
