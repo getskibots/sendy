@@ -846,7 +846,7 @@ async function fetchAllSendLogsForThread(threadId) {
 		.from('send_logs')
 		.select('id, sent_by, status, created_at, subject, body_text, ses_message_id')
 		.eq('thread_id', threadId)
-		.eq('status', 'sent_via_ses')
+		.in('status', ['sent_via_ses', 'sent_via_microsoft'])
 		.order('created_at', { ascending: true });
 	if (error) { console.warn('fetchAllSendLogsForThread failed:', error); return []; }
 	state.threadSendLogs = state.threadSendLogs || {};
@@ -877,7 +877,7 @@ async function fetchSendLogsForSentThreads() {
 		.from('send_logs')
 		.select('thread_id, sent_by, status, created_at, ses_message_id')
 		.in('thread_id', sentIds)
-		.eq('status', 'sent_via_ses')
+		.in('status', ['sent_via_ses', 'sent_via_microsoft'])
 		.order('created_at', { ascending: false });
 	if (error) { console.warn('fetchSendLogs failed:', error); return; }
 	// Keep the latest log per thread (first row encountered since sorted desc)
