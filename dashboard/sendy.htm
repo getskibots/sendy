@@ -2234,6 +2234,10 @@ document.getElementById('esSwitchCancel').addEventListener('click', () => {
   }
 })();
 
+// Always check MS connection status on page load so the topbar reflects reality
+// without requiring the user to open the email settings panel first.
+loadMsStatus();
+
 </script>
 </body>
 </html>
