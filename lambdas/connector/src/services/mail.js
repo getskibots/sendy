@@ -266,3 +266,40 @@ export async function deleteSubscription(connection) {
     logger.warn({ err: err.message, connectionId: connection.id }, 'subscription delete failed (may already be gone)');
   }
 }
+
+/**
+ * Renew an existing Graph subscription before it expires (max ~70h lifetime).
+ * Called by the EventBridge cron every 48h to stay ahead of expiry.
+ */
+export async function renewSubscription(connection) {
+  if (!connection.subscriptionId) throw new Error('No subscriptionId on connection');
+  const client = await graphClient(connection);
+  const expiration = new Date(Date.now() + 70 * 60 * 60 * 1000).toISOString();
+
+  let updated;
+  try {
+    updated = await client
+      .api(`/subscriptions/${connection.subscriptionId}`)
+      .patch({ expirationDateTime: expiration });
+  } catch (err) {
+    // Subscription may have already expired — recreate it
+    if (err.statusCode === 404 || err.code === 'ExtensionError') {
+      logger.warn({ connectionId: connection.id, subscriptionId: connection.subscriptionId }, 'subscription gone — recreating');
+      return createSubscription(connection);
+    }
+    throw err;
+  }
+
+  await connectionRepository.updateSubscription(connection.id, {
+    subscriptionId: updated.id,
+    expiration: updated.expirationDateTime,
+  });
+
+  logger.info({
+    connectionId: connection.id,
+    subscriptionId: updated.id,
+    expiration: updated.expirationDateTime,
+  }, 'renewed Graph subscription');
+
+  return updated;
+}
