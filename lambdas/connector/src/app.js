@@ -1,12 +1,19 @@
 // src/app.js — Express app wired up for Lambda
 
 import express from 'express';
+import cors from 'cors';
 import oauthRoutes from './routes/oauth.js';
 import mailRoutes from './routes/mail.js';
 import { logger } from './utils/logger.js';
 
 export const app = express();
 
+app.use(cors({
+  origin: ['https://getskibots.github.io', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
