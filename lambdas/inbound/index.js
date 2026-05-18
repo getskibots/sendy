@@ -39,9 +39,10 @@ const supabase = createClient(
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.5';
 const RESORT_ID = parseInt(process.env.RESORT_ID || '1', 10);
 const RESORT_NAME = process.env.RESORT_NAME || 'Jackson Hole Mountain Resort';
-const FROM_ADDRESS = process.env.FROM_ADDRESS || 'sendy@inbox.getskibots.com';
+const FROM_ADDRESS = process.env.FROM_ADDRESS || 'support@getresortmail.com';
 const FROM_NAME = process.env.FROM_NAME || ''; // empty = no display name
 const REPLY_TO_ADDRESS = process.env.REPLY_TO_ADDRESS || FROM_ADDRESS;
+const CONNECTOR_BASE_URL = process.env.CONNECTOR_BASE_URL || 'https://kpz4fvcdle.execute-api.us-east-1.amazonaws.com';
 
 const BLOCKED_CATEGORIES = [
 	'refund_request', 'complaint', 'safety_issue',
@@ -422,6 +423,7 @@ async function processMsMessage(payload) {
 	const { threadId, isNewInbound } = await findOrCreateThread({
 		resort_id: RESORT_ID,
 		resort_name: RESORT_NAME,
+		resort_email: payload.accountEmail || FROM_ADDRESS,
 		subject,
 		subject_normalized: subjectNorm,
 		guest_email: guestEmail,
@@ -496,8 +498,43 @@ async function processMsMessage(payload) {
 		await supabase.from('escalation_flags').insert({ thread_id: threadId, reason: 'other', detail: 'AI set needs_human=true', raised_by: 'ai' });
 	}
 
-	console.log(`processMsMessage complete thread=${threadId} status=${status} confidence=${draft.confidence}`);
-	return { thread_id: threadId, draft_id: insertedDraft.id, status };
+	// Auto-send if enabled and draft passes all safety gates
+	let autoSent = false;
+	try {
+		const safeForAuto = (
+			status === 'ready' &&
+			draft.confidence >= 0.85 &&
+			!draft.needs_human &&
+			!BLOCKED_CATEGORIES.includes(draft.category)
+		);
+		if (safeForAuto && await isAutoSendEnabled()) {
+			console.log(`Auto-sending (MS) thread=${threadId} (confidence=${draft.confidence})`);
+			await sendEmail({
+				threadId,
+				draftId: insertedDraft.id,
+				toEmail: guestEmail,
+				toName: guestName,
+				subject: draft.suggested_subject || ('Re: ' + subject),
+				bodyText: appendQuotedReply(draft.suggested_reply, bodyText, guestEmail, new Date().toISOString()),
+				inReplyTo: messageId,
+				referencesHeader: [...refs, messageId].filter(Boolean).join(' '),
+				sentBy: 'auto:lambda',
+				fromAddress: payload.accountEmail || FROM_ADDRESS,
+			});
+			autoSent = true;
+		}
+	} catch (sendErr) {
+		console.error(`Auto-send (MS) failed for thread=${threadId}:`, sendErr.message);
+		await supabase.from('escalation_flags').insert({
+			thread_id: threadId,
+			reason: 'auto_send_failed',
+			detail: 'Auto-send failed: ' + sendErr.message.slice(0, 300),
+			raised_by: 'system',
+		});
+	}
+
+	console.log(`processMsMessage complete thread=${threadId} status=${status} confidence=${draft.confidence} autoSent=${autoSent}`);
+	return { thread_id: threadId, draft_id: insertedDraft.id, status, auto_sent: autoSent };
 }
 
 async function processEmail(bucket, key) {
@@ -549,6 +586,7 @@ async function processEmail(bucket, key) {
 	const { threadId, isNewInbound } = await findOrCreateThread({
 		resort_id: resortId,
 		resort_name: resortName,
+		resort_email: fromAddress,
 		subject,
 		subject_normalized: subjectNorm,
 		guest_email: guestEmail,
@@ -673,7 +711,7 @@ async function processEmail(bucket, key) {
 		);
 		if (safeForAuto && await isAutoSendEnabled()) {
 			console.log(`Auto-sending thread=${threadId} (confidence=${draft.confidence})`);
-			await sendViaSES({
+			await sendEmail({
 				threadId,
 				draftId: insertedDraft.id,
 				toEmail: guestEmail,
@@ -791,6 +829,7 @@ async function findOrCreateThread(t) {
 		.insert({
 			resort_id: t.resort_id,
 			resort_name: t.resort_name,
+			resort_email: t.resort_email || null,
 			subject: t.subject,
 			subject_normalized: t.subject_normalized,
 			guest_email: t.guest_email,
@@ -1372,6 +1411,97 @@ async function isAutoSendEnabled() {
 	}
 }
 
+// Check Supabase for an active Microsoft connection. Cached 60s.
+let _msConnCache = { value: undefined, fetchedAt: 0 };
+async function getActiveMsConnection() {
+	const now = Date.now();
+	if (_msConnCache.value !== undefined && now - _msConnCache.fetchedAt < 60_000) {
+		return _msConnCache.value;
+	}
+	try {
+		const { data, error } = await supabase
+			.from('email_connections')
+			.select('id, account_email')
+			.eq('provider', 'microsoft')
+			.eq('status', 'active')
+			.limit(1)
+			.maybeSingle();
+		if (error) {
+			console.warn('getActiveMsConnection query error:', error.message, error.code);
+		}
+		const conn = error ? null : data;
+		console.log(`getActiveMsConnection: ${conn ? `found id=${conn.id}` : 'no active MS connection'}`);
+		_msConnCache = { value: conn, fetchedAt: now };
+		return conn;
+	} catch (e) {
+		console.warn('getActiveMsConnection exception:', e.message);
+		return null;
+	}
+}
+
+// Send via Microsoft Graph by calling the connector Lambda's send endpoint.
+// The connector owns token refresh and Graph API — we just hand it the payload.
+async function sendViaMicrosoft({ threadId, draftId, toEmail, subject, bodyText, inReplyTo, sentBy }) {
+	const payload = {
+		to: toEmail,
+		subject,
+		text: bodyText,
+		...(inReplyTo ? { inReplyTo } : {}),
+	};
+
+	const res = await fetch(`${CONNECTOR_BASE_URL}/api/microsoft/send`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(payload),
+	});
+
+	if (!res.ok) {
+		const errText = await res.text().catch(() => '');
+		await supabase.from('send_logs').insert({
+			thread_id: threadId,
+			draft_id: draftId,
+			subject,
+			body_text: bodyText,
+			status: 'failed',
+			sent_by: sentBy,
+			ses_message_id: null,
+			error_detail: `MS Graph send failed (${res.status}): ${errText.slice(0, 500)}`,
+		});
+		throw new Error(`MS Graph send failed: ${res.status} ${errText.slice(0, 200)}`);
+	}
+
+	console.log(`MS Graph sent: to=${toEmail} thread=${threadId}`);
+
+	await supabase.from('send_logs').insert({
+		thread_id: threadId,
+		draft_id: draftId,
+		subject,
+		body_text: bodyText,
+		status: 'sent_via_microsoft',
+		sent_by: sentBy,
+		ses_message_id: null,
+	});
+
+	await supabase.from('threads').update({
+		status: 'sent',
+		last_outbound_at: new Date().toISOString(),
+	}).eq('id', threadId);
+
+	return { messageId: null, provider: 'microsoft' };
+}
+
+// Route a send through whichever provider is active.
+// MS Outlook connection wins if present; falls back to SES.
+async function sendEmail(params) {
+	const msConn = await getActiveMsConnection();
+	if (msConn) {
+		console.log(`sendEmail: routing via Microsoft Graph (connection=${msConn.id})`);
+		return sendViaMicrosoft(params);
+	}
+	console.log('sendEmail: no active MS connection, routing via SES');
+	return sendViaSES(params);
+}
+
 // Build a properly-quoted From header: '"Name" <email>' or just '<email>'.
 // Accepts an optional address override — used when routing per-resort via getresortmail.com.
 function buildFromHeader(address) {
@@ -1425,7 +1555,7 @@ async function sendViaSES({ threadId, draftId, toEmail, toName, subject, bodyTex
 				.from('send_logs')
 				.select('id, ses_message_id, created_at')
 				.eq('draft_id', draftId)
-				.eq('status', 'sent_via_ses')
+				.in('status', ['sent_via_ses', 'sent_via_microsoft'])
 				.order('created_at', { ascending: false })
 				.limit(1);
 			if (dupErr) {
@@ -1632,7 +1762,7 @@ exports.sendReply = async (event) => {
 				.from('send_logs')
 				.select('ses_message_id, created_at')
 				.eq('thread_id', threadId)
-				.eq('status', 'sent_via_ses')
+				.in('status', ['sent_via_ses', 'sent_via_microsoft'])
 				.order('created_at', { ascending: false })
 				.limit(1);
 			if (latestSent && latestSent[0] && latestSent[0].ses_message_id) {
@@ -1642,7 +1772,7 @@ exports.sendReply = async (event) => {
 		}
 		referencesHeader = referencesHeader.split(/\s+/).filter(Boolean).join(' ').trim();
 
-		const result = await sendViaSES({
+		const result = await sendEmail({
 			threadId,
 			draftId: resolvedDraftId,
 			toEmail: thread.guest_email,

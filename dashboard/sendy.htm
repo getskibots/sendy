@@ -662,7 +662,28 @@
             <span class="es-pill es-pill--recommended">Recommended</span>
           </div>
           <div class="es-card-desc">Send and receive through your dedicated <strong>@getresortmail.com</strong> address — fully managed by Get Ski Bots, zero configuration required.</div>
-          <div class="es-card-meta" id="gsbEmailMeta">yourresort@getresortmail.com</div>
+          <!-- Handle unclaimed state -->
+          <div id="gsbHandleClaim" style="display:none; margin-top:10px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <div style="display:flex; align-items:center; border:1.5px solid var(--border); border-radius:7px; overflow:hidden; background:#fff;">
+                <input id="gsbHandleInput" type="text" placeholder="yourresort" maxlength="40"
+                  style="border:none; outline:none; padding:7px 10px; font-size:13px; font-family:var(--font-mono); width:130px; background:transparent; color:var(--ink);"
+                  oninput="document.getElementById('gsbHandlePreview').textContent = (this.value.toLowerCase().replace(/[^a-z0-9]/g,'') || 'yourresort') + '@getresortmail.com';"
+                />
+                <span style="padding:0 10px 0 0; font-size:13px; color:var(--muted); font-family:var(--font-mono); white-space:nowrap;">@getresortmail.com</span>
+              </div>
+              <button onclick="claimGsbHandle()" style="padding:7px 14px; font-size:12px; font-weight:600; background:var(--crimson); color:#fff; border:none; border-radius:7px; cursor:pointer;">Claim Address</button>
+            </div>
+            <div id="gsbHandlePreview" style="margin-top:6px; font-size:11px; color:var(--muted); font-family:var(--font-mono);">yourresort@getresortmail.com</div>
+          </div>
+          <!-- Handle claimed state -->
+          <div id="gsbHandleSet" style="display:none; margin-top:8px; display:none;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:12px; color:#16a34a; font-weight:600;">✓</span>
+              <span id="gsbEmailMeta" style="font-family:var(--font-mono); font-size:12px; color:var(--ink);">yourresort@getresortmail.com</span>
+              <button onclick="editGsbHandle()" style="margin-left:4px; font-size:11px; color:var(--muted); background:none; border:none; cursor:pointer; text-decoration:underline;">Change</button>
+            </div>
+          </div>
         </div>
         <div class="es-card-actions">
           <span class="es-pill es-pill--connected" id="gsbActivePill">✓ Active</span>
@@ -1314,7 +1335,7 @@ function buildTimelineHTML(t) {
 		const avCls = ev.isAuto ? 'tl-avatar--auto' : 'tl-avatar--manual';
 		const header = `<div class="tl-row__header">
 			<div class="tl-avatar ${avCls}">${icon}</div>
-			<div class="tl-row__meta"><div class="tl-row__from">Sendy <span class="tl-row__email">&lt;sendy@inbox.getskibots.com&gt;</span></div><div class="tl-row__time">${time}</div></div>
+			<div class="tl-row__meta"><div class="tl-row__from">Sendy <span class="tl-row__email">&lt;support@getresortmail.com&gt;</span></div><div class="tl-row__time">${time}</div></div>
 			<div class="tl-row__tag ${tagCls}">${tagLabel}</div>
 		</div>`;
 		const body = `<div class="tl-row__body">${esc(ev.body || '')}</div>`;
@@ -1348,7 +1369,7 @@ async function renderDetail() {
 			detail.innerHTML = `<div class="detail-empty">
 				<svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
 				<div>Select a thread to review the draft</div>
-				<div class="detail-empty__hint">Or forward another guest email to <span style="color:var(--crimson);font-family:var(--font-mono);font-size:11px;" id="emptyStateEmail">jacksonhole@getresortmail.com</span></div>
+				<div class="detail-empty__hint">Or forward another guest email to <span style="color:var(--crimson);font-family:var(--font-mono);font-size:11px;" id="emptyStateEmail">support@getresortmail.com</span></div>
 			</div>`;
 		}
 		return;
@@ -1366,7 +1387,7 @@ async function renderDetail() {
 			<div class="detail-header__info">
 				<div class="detail-header__name">${esc(t.guest_name || t.guest_email)}${sentBadgeFor(t)}</div>
 				<div class="detail-header__email">${esc(t.guest_email)}</div>
-				<div class="detail-header__to">To: ${esc(t.resort_email || 'sendy@inbox.getskibots.com')}</div>
+				<div class="detail-header__to">To: ${esc(t.resort_email || 'support@getresortmail.com')}</div>
 			</div>
 		</div>
 		<div class="detail-header__date">
@@ -2137,18 +2158,74 @@ const CONNECTOR_BASE = 'https://kpz4fvcdle.execute-api.us-east-1.amazonaws.com';
 async function openEsPanel() {
   document.getElementById('esPanel').classList.add('open');
   loadMsStatus();
-  // Load account's assigned getresortmail.com address
+  await loadGsbHandle();
+}
+
+async function loadGsbHandle() {
   try {
     const { data } = await state.supabase
       .from('accounts')
-      .select('email_address')
+      .select('handle, email_address')
       .order('id', { ascending: true })
       .limit(1)
-      .single();
-    if (data?.email_address) {
-      document.getElementById('gsbEmailMeta').textContent = data.email_address;
+      .maybeSingle();
+    if (data?.handle) {
+      renderGsbHandleSet(data.email_address || (data.handle + '@getresortmail.com'));
+    } else {
+      renderGsbHandleClaim();
     }
-  } catch(e) { /* offline / no account yet */ }
+  } catch(e) { renderGsbHandleClaim(); }
+}
+
+function renderGsbHandleSet(email) {
+  document.getElementById('gsbHandleClaim').style.display = 'none';
+  document.getElementById('gsbHandleSet').style.display = 'block';
+  document.getElementById('gsbEmailMeta').textContent = email;
+}
+
+function renderGsbHandleClaim() {
+  document.getElementById('gsbHandleClaim').style.display = 'block';
+  document.getElementById('gsbHandleSet').style.display = 'none';
+}
+
+function editGsbHandle() {
+  renderGsbHandleClaim();
+  const current = document.getElementById('gsbEmailMeta').textContent.replace('@getresortmail.com','');
+  const inp = document.getElementById('gsbHandleInput');
+  inp.value = current;
+  inp.focus();
+}
+
+async function claimGsbHandle() {
+  const raw = document.getElementById('gsbHandleInput').value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!raw) { showToast('Enter a handle first', true); return; }
+  const email = raw + '@getresortmail.com';
+  try {
+    // Check if an account row already exists
+    const { data: existing } = await state.supabase
+      .from('accounts')
+      .select('id')
+      .order('id', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    let err;
+    if (existing?.id) {
+      ({ error: err } = await state.supabase
+        .from('accounts')
+        .update({ handle: raw })
+        .eq('id', existing.id));
+    } else {
+      ({ error: err } = await state.supabase
+        .from('accounts')
+        .insert({ handle: raw }));
+    }
+    if (err) throw new Error(err.message);
+    renderGsbHandleSet(email);
+    // Update the empty-state hint
+    const hint = document.getElementById('emptyStateEmail');
+    if (hint) hint.textContent = email;
+    showToast('Address saved — ' + email);
+  } catch(e) { showToast('Save failed: ' + e.message, true); }
 }
 function closeEsPanel() {
   document.getElementById('esPanel').classList.remove('open');
