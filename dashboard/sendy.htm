@@ -414,18 +414,6 @@
 	.draft-field__textarea { width: 100%; padding: 12px 14px; font-family: var(--font-ui); font-size: 13.5px; line-height: 1.65; border: 1px solid var(--border-2); border-radius: 7px; background: #fff; min-height: 240px; resize: vertical; }
 	.draft-field__input:focus, .draft-field__textarea:focus { outline: none; border-color: var(--crimson); box-shadow: 0 0 0 3px rgba(139,29,29,0.08); }
 	.draft-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-	.compose-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 12px; flex-wrap: wrap; }
-	.compose-toolbar__routing { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); overflow: hidden; }
-	.compose-toolbar__from { font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-	.compose-toolbar__to { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-	.compose-toolbar__arrow { flex-shrink: 0; color: var(--mute-2); }
-	.compose-toolbar__chips { display: flex; gap: 5px; flex-shrink: 0; align-items: center; }
-	.compose-footer { display: flex; align-items: center; gap: 2px; padding: 10px 0 2px; border-top: 1px solid var(--border); margin-top: 10px; flex-wrap: wrap; }
-	.compose-footer__btn { background: none; border: none; cursor: pointer; font-family: var(--font-ui); font-size: 12px; font-weight: 500; color: var(--ink-3); padding: 5px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; transition: background 0.12s, color 0.12s; }
-	.compose-footer__btn:hover { background: var(--bg-2); color: var(--ink); }
-	.compose-footer__btn--danger { color: #e11d48; }
-	.compose-footer__btn--danger:hover { background: #fef2f2; color: #be123c; }
-	.compose-footer__sep { width: 1px; height: 14px; background: var(--border-2); margin: 0 2px; flex-shrink: 0; }
 	.action-btn { font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 7px; border: 1px solid; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); }
 	.action-btn svg { width: 14px; height: 14px; stroke-width: 2; fill: none; stroke: currentColor; }
 	.action-btn--primary { background: var(--ink); color: #fff; border-color: var(--ink); }
@@ -1528,36 +1516,31 @@ async function renderDetail() {
 		</div>
 	</header>
 	<div class="detail-body">
-		${banner.cls ? `<div class="ai-banner ${banner.cls}"><svg class="ai-banner__spark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0l2.5 7.5L22 10l-7.5 2.5L12 20l-2.5-7.5L2 10l7.5-2.5z"/></svg><div class="ai-banner__text">${banner.html}</div></div>` : ''}
+		<div class="ai-banner ${banner.cls}"><svg class="ai-banner__spark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0l2.5 7.5L22 10l-7.5 2.5L12 20l-2.5-7.5L2 10l7.5-2.5z"/></svg><div class="ai-banner__text">${banner.html}</div></div>
 
 		${draft ? `<div class="draft-section">
-			${draft.internal_notes ? `<div class="internal-notes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span><strong>Internal notes:</strong> ${esc(draft.internal_notes)}</span></div>` : ''}
-			${isBlocked ? `<div class="draft-blocked-banner"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>This category is permanently blocked from auto-sending. Editable but must be human-approved.</span></div>` : ''}
-			<div class="compose-toolbar">
-				${t.status === 'sent'
-					? `<span class="sent-state-row__label">✓ Sent</span>`
-					: `<button class="action-btn action-btn--primary" id="btn-send" ${state.config.lambda_url ? '' : 'disabled title="Lambda URL not configured"'}><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>Send</button>`}
-				<div class="compose-toolbar__routing">
-					<span class="compose-toolbar__from">From: ${esc(t.resort_email || 'support@getresortmail.com')}</span>
-					<svg class="compose-toolbar__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-					<span class="compose-toolbar__to">To: ${esc(t.guest_email)}</span>
-				</div>
-				<div class="compose-toolbar__chips">
+			<div class="draft-section__header">
+				<div class="draft-section__title"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0l2.5 7.5L22 10l-7.5 2.5L12 20l-2.5-7.5L2 10l7.5-2.5z"/></svg>AI-drafted reply</div>
+				<div class="draft-meta">
 					<span class="draft-chip draft-chip--cat">${esc(draft.category.replace('_',' '))}</span>
-					<span class="draft-chip ${confCls}">${Math.round(draft.confidence*100)}%</span>
+					<span class="draft-chip ${confCls}">${Math.round(draft.confidence*100)}% confidence</span>
 					${draft.needs_human ? '<span class="draft-chip draft-chip--human">needs human</span>' : ''}
 				</div>
 			</div>
+			${draft.internal_notes ? `<div class="internal-notes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span><strong>Internal notes:</strong> ${esc(draft.internal_notes)}</span></div>` : ''}
+			${isBlocked ? `<div class="draft-blocked-banner"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>This category is permanently blocked from auto-sending. Editable but must be human-approved.</span></div>` : ''}
 			<div class="draft-field"><label class="draft-field__label">Subject</label><input class="draft-field__input" id="edit-subject" value="${esc(draft.suggested_subject || '')}" ${t.status === 'sent' ? 'disabled' : ''}></div>
 			<div class="draft-field"><label class="draft-field__label">Reply body</label><textarea class="draft-field__textarea" id="edit-reply" ${t.status === 'sent' ? 'disabled' : ''}>${esc(draft.suggested_reply || '')}</textarea></div>
-			${t.status === 'sent' ? `<div class="compose-footer">
-				${!t.deleted_at ? `<button class="compose-footer__btn" id="btn-followup-open"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/></svg>Send follow-up</button>` : ''}
-			</div>` : `<div class="compose-footer">
-				<button class="compose-footer__btn" id="btn-copy"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy reply</button>
-				<div class="compose-footer__sep"></div>
-				${state.config.lambda_url ? `<button class="compose-footer__btn" id="btn-regen"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span id="btn-regen-label">Regenerate</span></button><div class="compose-footer__sep"></div>` : ''}
-				<button class="compose-footer__btn" id="btn-sent"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Mark sent (external)</button>
-				${!isBlocked && t.status !== 'escalated' ? `<div class="compose-footer__sep"></div><button class="compose-footer__btn compose-footer__btn--danger" id="btn-escalate"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Escalate</button>` : ''}
+			${t.status === 'sent' ? `<div class="sent-state-row">
+				<span class="sent-state-row__label">✓ Marked as sent.</span>
+				${!t.deleted_at ? `<button class="action-btn action-btn--secondary action-btn--sm" id="btn-followup-open"><svg viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/></svg>Send follow-up</button>` : ''}
+			</div>` : `
+			<div class="draft-actions">
+				<button class="action-btn action-btn--primary" id="btn-send" ${state.config.lambda_url ? '' : 'disabled title="Lambda URL not configured"'}><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>Send</button>
+				<button class="action-btn action-btn--secondary" id="btn-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy reply</button>
+				${state.config.lambda_url ? `<button class="action-btn action-btn--secondary" id="btn-regen"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span id="btn-regen-label">Regenerate</span></button>` : ''}
+				<button class="action-btn action-btn--secondary" id="btn-sent"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Mark sent (external)</button>
+				${!isBlocked && t.status !== 'escalated' ? `<button class="action-btn action-btn--danger" id="btn-escalate"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>Escalate</button>` : ''}
 			</div>`}
 		</div>` : `<div class="draft-section"><div style="text-align:center;color:var(--mute);font-size:13px;padding:30px;"><div class="spinner" style="border-color:var(--crimson);border-right-color:transparent;width:18px;height:18px;margin-bottom:12px;"></div><div>AI is drafting a reply — usually 5-15 seconds.</div>${state.config.lambda_url ? `<button class="action-btn action-btn--secondary" id="btn-regen" style="margin-top:14px;"><span id="btn-regen-label">Draft with AI</span></button>` : ''}</div></div>`}
 
