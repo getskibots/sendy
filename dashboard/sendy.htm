@@ -322,7 +322,10 @@
 	.followup-composer__input, .followup-composer__textarea { width: 100%; padding: 10px 12px; font-family: var(--font-ui); font-size: 13px; border: 1px solid var(--border-2); border-radius: 7px; background: #fff; color: var(--ink); box-sizing: border-box; }
 	.followup-composer__textarea { min-height: 150px; resize: vertical; line-height: 1.6; }
 	.followup-composer__actions { display: flex; gap: 8px; justify-content: flex-end; }
-	.detail-body { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px 24px; }
+	.detail-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px 24px; }
+	.detail-compose { flex-shrink: 0; border-top: 1px solid var(--border); background: #fff; overflow-y: auto; max-height: 58vh; }
+	.detail-compose .draft-section { border: none; border-radius: 0; background: #fff; padding: 14px 24px 16px; box-shadow: none; }
+	.detail-compose .draft-field__textarea { min-height: 120px; }
 
 	.ai-banner { border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 18px; background: linear-gradient(95deg, var(--crimson-50), #ffeaea, var(--crimson-50)); border: 1px solid #f7d4d4; }
 	.ai-banner__spark { width: 16px; height: 16px; flex-shrink: 0; }
@@ -1502,9 +1505,11 @@ async function renderDetail() {
 			</div>
 		</div>
 	</header>
-	<div class="detail-body">
+	<div class="detail-scroll">
 		<div class="ai-banner ${banner.cls}"><svg class="ai-banner__spark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0l2.5 7.5L22 10l-7.5 2.5L12 20l-2.5-7.5L2 10l7.5-2.5z"/></svg><div class="ai-banner__text">${banner.html}</div></div>
-
+		${buildTimelineHTML(t)}
+	</div>
+	<div class="detail-compose">
 		${draft ? `<div class="draft-section">
 			<div class="draft-section__header">
 				<div class="draft-section__title"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0l2.5 7.5L22 10l-7.5 2.5L12 20l-2.5-7.5L2 10l7.5-2.5z"/></svg>AI-drafted reply</div>
@@ -1531,12 +1536,6 @@ async function renderDetail() {
 			</div>`}
 		</div>` : `<div class="draft-section"><div style="text-align:center;color:var(--mute);font-size:13px;padding:30px;"><div class="spinner" style="border-color:var(--crimson);border-right-color:transparent;width:18px;height:18px;margin-bottom:12px;"></div><div>AI is drafting a reply — usually 5-15 seconds.</div>${state.config.lambda_url ? `<button class="action-btn action-btn--secondary" id="btn-regen" style="margin-top:14px;"><span id="btn-regen-label">Draft with AI</span></button>` : ''}</div></div>`}
 
-		<div class="replying-to-connector">
-			<span class="replying-to-connector__label">Replying to</span>
-			<svg class="replying-to-connector__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="19 12 12 19 5 12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
-		</div>
-
-		${buildTimelineHTML(t)}
 	</div>`;
 
 	document.getElementById('btn-send')?.addEventListener('click', () => sendReply(t.id, draft));
