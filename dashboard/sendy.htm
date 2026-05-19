@@ -389,8 +389,8 @@
 	.tl-avatar--ai-flag { background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%); color: #fff; font-size: 13px; }
 	.tl-row__tag--escalated { background: #fef2f2; color: #9f1239; border: 1px solid #fecaca; }
 	.tl-row__tag--ai-flag { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
-	.tl-row--escalated { border-left: 3px solid #e11d48; background: linear-gradient(to right, #fff1f2 0%, #fff 30%); }
-	.tl-row--ai-flag { border-left: 3px solid #7c3aed; background: linear-gradient(to right, #f5f3ff 0%, #fff 30%); }
+	.tl-row--escalated { background: #fef2f2; border: 1px solid #fecaca; }
+	.tl-row--ai-flag { background: #fffbeb; border: 1px solid #fde68a; }
 	.tl-row--event { border-radius: 8px; margin-bottom: 8px; overflow: hidden; padding: 10px 12px; display: flex; align-items: center; gap: 9px; }
 	.tl-row--event .tl-row__meta { flex: 1; min-width: 0; }
 	.tl-row--event .tl-row__body { padding: 4px 0 0 35px; font-size: 12px; color: var(--ink-3); white-space: pre-wrap; word-wrap: break-word; }
@@ -1318,10 +1318,11 @@ function buildTimelineHTML(t) {
 			when: new Date(flag.created_at),
 		});
 	}
-	// AI-flagged event: if the latest draft has needs_human=true, show it in the timeline
+	// AI-flagged event: only add if no AI-raised escalation flag already covers it
 	const draftList = state.drafts[t.id];
 	const latestDraft = Array.isArray(draftList) ? draftList[0] : null;
-	if (latestDraft && latestDraft.needs_human) {
+	const hasAiEscalation = escalationFlags.some(f => /^(ai|lambda)/i.test(f.raised_by || ''));
+	if (latestDraft && latestDraft.needs_human && !hasAiEscalation) {
 		events.push({
 			type: 'ai-flag',
 			direction: 'event',
@@ -1403,11 +1404,23 @@ function buildTimelineHTML(t) {
 		// event rows (escalation, ai-flag) — non-collapsible banners
 		if (ev.direction === 'event') {
 			if (ev.type === 'escalation') {
+				const isAiRaised = /^(ai|lambda)/i.test(ev.raisedBy);
+				if (isAiRaised) {
+					const confText = latestDraft && latestDraft.confidence != null
+						? ` · ${Math.round(latestDraft.confidence * 100)}% confidence` : '';
+					return `<div class="tl-row tl-row--event tl-row--ai-flag">
+						<div class="tl-avatar tl-avatar--ai-flag">⚠️</div>
+						<div class="tl-row__meta">
+							<div class="tl-row__from">AI couldn't handle this${confText}</div>
+							<div class="tl-row__time">${time}</div>
+						</div>
+					</div>`;
+				}
 				const noteHtml = ev.detail ? `<div class="tl-row__body">${esc(ev.detail)}</div>` : '';
 				return `<div class="tl-row tl-row--event tl-row--escalated">
 					<div class="tl-avatar tl-avatar--escalated">🚨</div>
 					<div class="tl-row__meta">
-						<div class="tl-row__from">Escalated <span class="tl-row__email">by ${esc(ev.raisedBy)}</span></div>
+						<div class="tl-row__from">Escalated by ${esc(ev.raisedBy)}</div>
 						<div class="tl-row__time">${time}</div>
 					</div>
 					<div class="tl-row__tag tl-row__tag--escalated">Escalated</div>
