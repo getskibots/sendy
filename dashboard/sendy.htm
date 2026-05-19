@@ -1082,7 +1082,7 @@ function renderRows() {
 			let sentIndicator = '';
 			if (isSent) {
 				if (isAutoSent) {
-					sentIndicator = `<div class="thread-row__sent-mark thread-row__sent-mark--auto" title="Auto-sent by AI">⚡</div>`;
+					sentIndicator = `<div class="thread-row__sent-mark thread-row__sent-mark--auto" title="Auto-sent by AI">✨</div>`;
 				} else {
 					sentIndicator = `<div class="thread-row__sent-mark thread-row__sent-mark--manual" title="Sent manually"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>`;
 				}
@@ -1175,7 +1175,7 @@ function sentBadgeFor(t) {
 	const isAuto = log && /^auto:/.test(log.sent_by || '');
 	const when = log && log.created_at ? new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
 	if (isAuto) {
-		return ` <span class="sent-badge sent-badge--auto" title="Sent automatically by AI${when ? ' on ' + when : ''}">⚡ AUTO-SENT${when ? ` · ${when}` : ''}</span>`;
+		return ` <span class="sent-badge sent-badge--auto" title="Sent automatically by AI${when ? ' on ' + when : ''}">✨ AUTO-SENT${when ? ` · ${when}` : ''}</span>`;
 	}
 	// Manual send — try to surface who sent it
 	let who = 'manually';
@@ -1428,7 +1428,7 @@ function buildTimelineHTML(t) {
 		}
 
 		// outbound
-		const icon = ev.isAuto ? '⚡' : ev.isMarked ? '📋' : '✓';
+		const icon = ev.isAuto ? '✨' : ev.isMarked ? '📋' : '✓';
 		const tagLabel = ev.isAuto ? 'Auto-sent' : ev.isMarked ? 'Marked sent' : 'Sent';
 		const tagCls = ev.isAuto ? 'tl-row__tag--auto' : 'tl-row__tag--manual';
 		const avCls = ev.isAuto ? 'tl-avatar--auto' : 'tl-avatar--manual';
