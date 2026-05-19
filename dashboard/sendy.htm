@@ -1284,7 +1284,7 @@ function bannerFor(draft, t) {
 	if (draft.confidence < SAFETY.MIN_CONFIDENCE) return { cls: 'ai-banner--low', html: `<strong>AI drafted</strong> with ${Math.round(draft.confidence*100)}% confidence — below 85% threshold. Review before sending.` };
 	const sendLog = t && state.sendLogs[t.id];
 	const wasAutoSent = sendLog && /^auto:/.test(sendLog.sent_by || '');
-	if (wasAutoSent) return { cls: 'ai-banner--auto', html: `<strong>Auto sent.</strong> AI drafted with ${Math.round(draft.confidence*100)}% confidence. Ready for your review.` };
+	if (wasAutoSent) return { cls: 'ai-banner--auto', html: `<strong>Auto sent.</strong> AI drafted with ${Math.round(draft.confidence*100)}% confidence.` };
 	return { cls: '', html: `<strong>AI drafted</strong> with ${Math.round(draft.confidence*100)}% confidence. Ready for your review.` };
 }
 // Build a chronological thread timeline combining:
