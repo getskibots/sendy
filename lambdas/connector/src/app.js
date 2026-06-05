@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import oauthRoutes from './routes/oauth.js';
 import mailRoutes from './routes/mail.js';
+import adminRoutes from './routes/admin.js';
 import { logger } from './utils/logger.js';
 
 export const app = express();
@@ -25,6 +26,9 @@ app.use('/api/oauth/microsoft', oauthRoutes);
 
 // Microsoft mail + webhook
 app.use('/api/microsoft', mailRoutes);
+
+// Admin (EventBridge-scheduled tasks; requires ADMIN_AUTH_TOKEN)
+app.use('/api/admin', adminRoutes);
 
 // Global error handler
 app.use((err, _req, res, _next) => {
