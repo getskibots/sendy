@@ -446,12 +446,13 @@ async function processMsMessage(payload) {
 	}
 
 	const history = await loadThreadHistory(threadId, { excludeKey: syntheticKey, limit: 6 });
-	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history });
+	const policy = await getAutoSendPolicy();
+	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history, customConfidenceRules: policy.custom_confidence_rules });
 
 	let status = 'review';
-	if (BLOCKED_CATEGORIES.includes(draft.category) || draft.needs_human) {
+	if (policy.blocked_categories.includes(draft.category) || draft.needs_human) {
 		status = 'escalated';
-	} else if (draft.confidence >= 0.85) {
+	} else if (draft.confidence >= policy.threshold) {
 		status = 'ready';
 	}
 
@@ -476,7 +477,7 @@ async function processMsMessage(payload) {
 
 	await supabase.from('threads').update({ status }).eq('id', threadId);
 
-	if (BLOCKED_CATEGORIES.includes(draft.category)) {
+	if (policy.blocked_categories.includes(draft.category)) {
 		await supabase.from('escalation_flags').insert({ thread_id: threadId, reason: draft.category, detail: `AI categorized into blocked category. Confidence ${draft.confidence}.`, raised_by: 'ai' });
 	} else if (draft.needs_human) {
 		await supabase.from('escalation_flags').insert({ thread_id: threadId, reason: 'other', detail: 'AI set needs_human=true', raised_by: 'ai' });
@@ -487,9 +488,9 @@ async function processMsMessage(payload) {
 	try {
 		const safeForAuto = (
 			status === 'ready' &&
-			draft.confidence >= 0.85 &&
+			draft.confidence >= policy.threshold &&
 			!draft.needs_human &&
-			!BLOCKED_CATEGORIES.includes(draft.category)
+			!policy.blocked_categories.includes(draft.category)
 		);
 		if (safeForAuto && await isAutoSendEnabled()) {
 			console.log(`Auto-sending (MS) thread=${threadId} (confidence=${draft.confidence})`);
@@ -895,7 +896,7 @@ async function loadThreadHistory(threadId, { excludeKey = null, excludeInboundId
 	return merged;
 }
 
-async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hint, previousDraft, history }) {
+async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hint, previousDraft, history, customConfidenceRules }) {
 	// Today's date in Mountain Time (resort's local timezone) — drives season-aware logic
 	const todayMT = new Date().toLocaleDateString('en-US', {
 		timeZone: 'America/Denver',
@@ -963,7 +964,11 @@ async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hi
 	const payload = {
 		model: OPENAI_MODEL,
 		messages: [
-			{ role: 'system', content: SYSTEM_PROMPT },
+			{ role: 'system', content: (customConfidenceRules && customConfidenceRules.trim()) ? `${SYSTEM_PROMPT}
+
+# Resort-specific confidence rules
+Apply these when self-scoring your confidence (they may lower it and route a draft to human review):
+${customConfidenceRules.trim()}` : SYSTEM_PROMPT },
 			{ role: 'user', content: userPrompt },
 		],
 		response_format: { type: 'json_object' },
@@ -1082,8 +1087,10 @@ exports.regenerate = async (event) => {
 		}
 		const history = await loadThreadHistory(threadId, { excludeInboundId: currentInboundId, limit: 6 });
 
+		const policy = await getAutoSendPolicy();
 		const draft = await callOpenAI({
 			resortName: thread.resort_name,
+			customConfidenceRules: policy.custom_confidence_rules,
 			guestName: thread.guest_name || '',
 			guestEmail: thread.guest_email,
 			subject: thread.subject,
@@ -1094,8 +1101,8 @@ exports.regenerate = async (event) => {
 		});
 
 		let status = 'review';
-		if (BLOCKED_CATEGORIES.includes(draft.category) || draft.needs_human) status = 'escalated';
-		else if (draft.confidence >= 0.85) status = 'ready';
+		if (policy.blocked_categories.includes(draft.category) || draft.needs_human) status = 'escalated';
+		else if (draft.confidence >= policy.threshold) status = 'ready';
 
 		const { data: insertedDraft, error: insertErr } = await supabase
 			.from('drafts')
@@ -1186,6 +1193,39 @@ async function isAutoSendEnabled() {
 	} catch (e) {
 		console.error('Failed to check auto_send_enabled, defaulting to OFF:', e.message);
 		return false;
+	}
+}
+
+// Per-resort escalation policy from accounts.instructions.auto_send (JSONB).
+// Returns { threshold, blocked_categories, custom_confidence_rules }; each field
+// falls back to the hardcoded default when absent/invalid, so behavior is identical
+// to before until a resort saves a policy in omni-odin. Cached ~60s like isAutoSendEnabled.
+let _autoSendPolicyCache = { value: null, fetchedAt: 0 };
+async function getAutoSendPolicy() {
+	const DEFAULTS = { threshold: 0.85, blocked_categories: BLOCKED_CATEGORIES, custom_confidence_rules: '' };
+	const now = Date.now();
+	if (_autoSendPolicyCache.value && now - _autoSendPolicyCache.fetchedAt < 60_000) {
+		return _autoSendPolicyCache.value;
+	}
+	try {
+		const { data, error } = await supabase
+			.from('accounts')
+			.select('instructions')
+			.order('id', { ascending: true })
+			.limit(1)
+			.maybeSingle();
+		if (error) throw error;
+		const a = (data && data.instructions && data.instructions.auto_send) || {};
+		const policy = {
+			threshold: (typeof a.threshold === 'number' && a.threshold >= 0 && a.threshold <= 1) ? a.threshold : DEFAULTS.threshold,
+			blocked_categories: Array.isArray(a.blocked_categories) ? a.blocked_categories : DEFAULTS.blocked_categories,
+			custom_confidence_rules: (typeof a.custom_confidence_rules === 'string') ? a.custom_confidence_rules : DEFAULTS.custom_confidence_rules,
+		};
+		_autoSendPolicyCache = { value: policy, fetchedAt: now };
+		return policy;
+	} catch (e) {
+		console.error('Failed to load auto_send policy, using defaults:', e.message);
+		return DEFAULTS;
 	}
 }
 
