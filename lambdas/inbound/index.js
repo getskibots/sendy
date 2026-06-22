@@ -1,11 +1,12 @@
 /**
- * GSB AI Inbox - SES inbound parser & drafter.
+ * GSB AI Inbox - email parser & drafter.
  *
- * Trigger: S3 ObjectCreated on gsb-ai-inbox-inbound/inbound/*
+ * Trigger: SQS (sendy-inbound) - messages relayed by sendy-connector from
+ * Microsoft Graph (Outlook). Legacy SES->S3 inbound removed 2026-06.
  *
  * Flow:
- *   1. Fetch raw MIME from S3
- *   2. Parse with mailparser
+ *   1. Receive the pre-parsed message from the connector via SQS
+ *   2. Clean the body (strip quoted history)
  *   3. Call OpenAI gpt-5.5 with structured JSON prompt
  *   4. Insert into Supabase threads + drafts tables
  *
@@ -23,12 +24,9 @@
  * Timeout: 30 seconds (OpenAI calls can take ~10s)
  */
 
-const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { SESv2Client, SendEmailCommand } = require('@aws-sdk/client-sesv2');
-const { simpleParser } = require('mailparser');
 const { createClient } = require('@supabase/supabase-js');
 
-const s3 = new S3Client({});
 const ses = new SESv2Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const supabase = createClient(
 	process.env.SUPABASE_URL,
@@ -363,23 +361,9 @@ exports.handler = async (event) => {
 				continue;
 			}
 
-			if (!record.s3) {
-				console.log('Skipping non-S3 record:', JSON.stringify(record));
-				continue;
-			}
-
-			const bucket = record.s3.bucket.name;
-			const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
-
-			// Skip AMAZON_SES_SETUP_NOTIFICATION
-			if (key.endsWith('AMAZON_SES_SETUP_NOTIFICATION')) {
-				console.log('Skipping SES setup notification:', key);
-				continue;
-			}
-
-			console.log(`Processing: ${bucket}/${key}`);
-			const result = await processEmail(bucket, key);
-			results.push(result);
+			// Inbound is SQS-only (Microsoft Graph via sendy-connector).
+			// Legacy SES->S3 inbound was decommissioned 2026-06.
+			console.log('Skipping non-SQS record:', JSON.stringify(record));
 		} catch (err) {
 			console.error('Failed to process record:', err);
 			results.push({ error: err.message, stack: err.stack });
@@ -537,215 +521,9 @@ async function processMsMessage(payload) {
 	return { thread_id: threadId, draft_id: insertedDraft.id, status, auto_sent: autoSent };
 }
 
-async function processEmail(bucket, key) {
-	// 1. Fetch from S3
-	const mime = await fetchMime(bucket, key);
-
-	// 2. Parse
-	const parsed = await simpleParser(mime);
-	const from = (parsed.from && parsed.from.value && parsed.from.value[0]) || {};
-	const guestEmail = (from.address || '').toLowerCase();
-	const guestName = from.name || '';
-	const subject = parsed.subject || '(no subject)';
-	const bodyTextRaw = parsed.text || '';
-	const bodyText = stripQuoted(bodyTextRaw);
-	const bodyHtml = parsed.html || '';
-	const messageId = parsed.messageId || '';
-	const inReplyTo = parsed.inReplyTo || '';
-	const refs = Array.isArray(parsed.references)
-		? parsed.references
-		: (parsed.references ? parsed.references.split(/\s+/).filter(Boolean) : []);
-
-	if (!guestEmail) {
-		throw new Error('No guest email address found in MIME');
-	}
-
-	// 2b. Identify resort from To: address (getresortmail.com catch-all routing)
-	const toAddrs = parsed.to && parsed.to.value ? parsed.to.value : [];
-	const toEmailAddr = toAddrs[0] ? (toAddrs[0].address || '').toLowerCase() : '';
-	const resort = await lookupResortByToAddress(toEmailAddr);
-	const resortId   = resort ? resort.id           : RESORT_ID;
-	const resortName = resort ? resort.name         : RESORT_NAME;
-	const fromAddress = resort ? resort.email_address : FROM_ADDRESS;
-	console.log(`Resort resolved: id=${resortId} name="${resortName}" from=${fromAddress}`);
-
-	// 3. Idempotency: skip if we've already ingested this S3 key
-	const { data: existing, error: existErr } = await supabase
-		.from('threads')
-		.select('id')
-		.eq('raw_s3_key', key)
-		.limit(1);
-	if (existErr) throw existErr;
-	if (existing && existing.length > 0) {
-		console.log(`Already ingested key=${key}, skipping`);
-		return { skipped: true, thread_id: existing[0].id };
-	}
-
-	// 4. Find or create thread (header-based threading takes priority over subject matching)
-	const subjectNorm = normalizeSubject(subject);
-	const { threadId, isNewInbound } = await findOrCreateThread({
-		resort_id: resortId,
-		resort_name: resortName,
-		resort_email: fromAddress,
-		subject,
-		subject_normalized: subjectNorm,
-		guest_email: guestEmail,
-		guest_name: guestName,
-		raw_s3_key: key,
-		message_id: messageId,
-		in_reply_to: inReplyTo,
-		ref_header: refs.join(' '),
-		references: refs,
-		body_text: bodyText,
-		body_text_raw: bodyTextRaw,
-		body_html: bodyHtml,
-		headers_json: Object.fromEntries(parsed.headers || []),
-	});
-
-	// 4b. Persist this inbound to inbound_messages for full thread history.
-	// threads.body_text remains a denormalized cache of the latest inbound for
-	// fast inbox-row previews; inbound_messages holds the full per-email history.
-	try {
-		const { error: inboundErr } = await supabase.from('inbound_messages').insert({
-			thread_id: threadId,
-			from_email: guestEmail,
-			from_name: guestName || null,
-			subject,
-			body_text: bodyText,
-			body_text_raw: bodyTextRaw,
-			body_html: bodyHtml || null,
-			message_id: messageId || null,
-			in_reply_to: inReplyTo || null,
-			ref_header: refs.join(' ') || null,
-			raw_s3_key: key,
-			received_at: new Date().toISOString(),
-		});
-		// Unique constraint on raw_s3_key gives us idempotency. If the same S3 object
-		// gets reprocessed, the insert will fail with code 23505 — that's fine, swallow.
-		if (inboundErr && inboundErr.code !== '23505') {
-			console.warn('inbound_messages insert failed:', inboundErr.message);
-		}
-	} catch (e) {
-		// Don't fail the whole pipeline on history-table issues; drafting is more important
-		console.warn('inbound_messages insert exception:', e.message);
-	}
-
-	// 5. Call OpenAI with the CLEANED body (saves tokens, better drafts).
-	//    History excludes the current inbound by raw_s3_key — we just inserted it
-	//    a few lines up at step 4b, and the AI is replying to it as the LATEST
-	//    inbound, not as part of the backlog.
-	const history = await loadThreadHistory(threadId, { excludeKey: key, limit: 6 });
-	const draft = await callOpenAI({
-		resortName,
-		guestName,
-		guestEmail,
-		subject,
-		body: bodyText,
-		history,
-	});
-
-	// 6. Decide status
-	let status = 'review';
-	if (BLOCKED_CATEGORIES.includes(draft.category) || draft.needs_human) {
-		status = 'escalated';
-	} else if (draft.confidence >= 0.85) {
-		status = 'ready';
-	} else if (draft.confidence >= 0.70) {
-		status = 'review';
-	} else {
-		status = 'review';
-	}
-
-	// 7. Insert draft
-	const { data: insertedDraft, error: draftErr } = await supabase
-		.from('drafts')
-		.insert({
-			thread_id: threadId,
-			model: OPENAI_MODEL,
-			prompt_version: 'v1',
-			category: draft.category,
-			confidence: draft.confidence,
-			needs_human: draft.needs_human,
-			suggested_subject: draft.suggested_subject,
-			suggested_reply: draft.suggested_reply,
-			internal_notes: draft.internal_notes,
-			raw_response: draft.raw,
-			source: 'ai',
-		})
-		.select()
-		.single();
-	if (draftErr) throw draftErr;
-
-	// 8. Update thread status
-	const { error: updateErr } = await supabase
-		.from('threads')
-		.update({ status })
-		.eq('id', threadId);
-	if (updateErr) throw updateErr;
-
-	// 9. Add escalation flag if blocked category
-	if (BLOCKED_CATEGORIES.includes(draft.category)) {
-		await supabase.from('escalation_flags').insert({
-			thread_id: threadId,
-			reason: draft.category,
-			detail: `AI categorized into blocked category. Confidence ${draft.confidence}.`,
-			raised_by: 'ai',
-		});
-	} else if (draft.needs_human) {
-		await supabase.from('escalation_flags').insert({
-			thread_id: threadId,
-			reason: 'other',
-			detail: 'AI set needs_human=true',
-			raised_by: 'ai',
-		});
-	}
-
-	// 10. Auto-send if enabled AND draft passes all safety gates
-	let autoSent = false;
-	try {
-		const safeForAuto = (
-			status === 'ready' &&
-			draft.confidence >= 0.85 &&
-			!draft.needs_human &&
-			!BLOCKED_CATEGORIES.includes(draft.category)
-		);
-		if (safeForAuto && await isAutoSendEnabled()) {
-			console.log(`Auto-sending thread=${threadId} (confidence=${draft.confidence})`);
-			await sendEmail({
-				threadId,
-				draftId: insertedDraft.id,
-				toEmail: guestEmail,
-				toName: guestName,
-				subject: draft.suggested_subject || ('Re: ' + subject),
-				bodyText: appendQuotedReply(draft.suggested_reply, bodyText, guestEmail, new Date().toISOString()),
-				inReplyTo: messageId,
-				referencesHeader: [...refs, messageId].filter(Boolean).join(' '),
-				sentBy: 'auto:lambda',
-				fromAddress,
-			});
-			autoSent = true;
-		}
-	} catch (sendErr) {
-		console.error(`Auto-send failed for thread=${threadId}:`, sendErr.message);
-		// Don't throw — drafting succeeded, send is best-effort
-		await supabase.from('escalation_flags').insert({
-			thread_id: threadId,
-			reason: 'auto_send_failed',
-			detail: 'Auto-send failed: ' + sendErr.message.slice(0, 300),
-			raised_by: 'system',
-		});
-	}
-
-	console.log(`Processed thread=${threadId} category=${draft.category} confidence=${draft.confidence} status=${status} autoSent=${autoSent}`);
-	return { thread_id: threadId, draft_id: insertedDraft.id, status, category: draft.category, auto_sent: autoSent };
-}
 
 // ============ Helpers ============
 
-async function fetchMime(bucket, key) {
-	const out = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-	return await out.Body.transformToString('utf-8');
-}
 
 function normalizeSubject(subject) {
 	let s = (subject || '').trim();
@@ -1544,7 +1322,7 @@ async function sendViaSES({ threadId, draftId, toEmail, toName, subject, bodyTex
 	// Covers the auto-send vs manual-send race (Lambda auto-sends an inbound, then
 	// a human clicks Send on the same draft before the dashboard re-renders) and
 	// also any retries / double-clicks. Keyed on draft_id, which is the same value
-	// both paths converge on inside the same processEmail run.
+	// both the auto-send and manual-send paths converge on for a given draft.
 	//
 	// Skipped when draftId is null — we don't have a safe key to dedupe on, so
 	// fall through to SES. Currently nothing in this codebase calls sendViaSES
