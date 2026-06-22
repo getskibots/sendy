@@ -35,6 +35,9 @@ const supabase = createClient(
 );
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.5';
+// MULTI-TENANT: single-tenant bot identity today. In a per-bot build, derive the
+// bot from the inbound mailbox/connection instead of a hardcoded id/name.
+// See the "MULTI-TENANT INSERTION POINT" note above SYSTEM_PROMPT below.
 const RESORT_ID = parseInt(process.env.RESORT_ID || '1', 10);
 const RESORT_NAME = process.env.RESORT_NAME || 'Jackson Hole Mountain Resort';
 const FROM_ADDRESS = process.env.FROM_ADDRESS || 'support@getresortmail.com';
@@ -54,6 +57,26 @@ const ALLOWED_CATEGORIES = [
 	'legal_threat', 'medical_issue', 'angry_guest', 'other'
 ];
 
+// ============================================================================
+//  MULTI-TENANT INSERTION POINT  (single-tenant today — Jackson Hole)
+// ----------------------------------------------------------------------------
+//  This Lambda serves ONE bot: the hardcoded SYSTEM_PROMPT below + RESORT_ID /
+//  RESORT_NAME above. To make it per-bot (multi-tenant):
+//
+//    1. Identify the bot from the inbound mailbox / connection (the recipient
+//       address) instead of the hardcoded RESORT_ID.
+//    2. Load THAT bot's content by bot_id from your config store and use it as
+//       the resort content. IMPORTANT: keep the GSB machinery at the END of
+//       SYSTEM_PROMPT — the "OUTPUT FORMAT" JSON schema + "Confidence
+//       Calibration Rules" — appended. The draft parser and escalation logic
+//       depend on that machinery; only the content above it is per-bot.
+//    3. The per-bot READ PATTERN already exists here: see getAutoSendPolicy(),
+//       which reads this account's escalation policy from accounts.instructions.
+//       Extend the same shape, keyed by bot_id, to also carry the content.
+//
+//  Split line: SYSTEM_PROMPT = [resort content] + "---" + [GSB machinery].
+//  A per-bot build swaps the content; the machinery stays fixed.
+// ============================================================================
 const SYSTEM_PROMPT = `# Jackson Hole Mountain Resort — Email Guest Services Virtual Assistant
 
 You are a friendly and professional Virtual Assistant trained to draft 1:1 email replies for Jackson Hole Mountain Resort guests. You provide only current-day resort information with season-aware, guest-friendly responses.
