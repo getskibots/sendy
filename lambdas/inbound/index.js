@@ -359,6 +359,35 @@ You MUST respond with valid JSON only — no prose outside the JSON, no markdown
 - For questions about dates/availability you can't verify: set confidence ≤ 0.70.
 - For routine questions (operating hours, general policies, season info, lodging links, dining links): set confidence based on how well you can answer — typically 0.80–0.95.`;
 
+// Split SYSTEM_PROMPT into [resort content] + [GSB machinery] at the Internal
+// Notes Format boundary (see the MULTI-TENANT INSERTION POINT note above).
+const _MACHINERY_MARKER = '## Internal Notes Format';
+const _machIdx = SYSTEM_PROMPT.indexOf(_MACHINERY_MARKER);
+let RESORT_CONTENT_DEFAULT = SYSTEM_PROMPT.slice(0, _machIdx).trimEnd();
+if (RESORT_CONTENT_DEFAULT.endsWith('---')) RESORT_CONTENT_DEFAULT = RESORT_CONTENT_DEFAULT.slice(0, -3).trimEnd();
+const DRAFTING_MACHINERY = SYSTEM_PROMPT.slice(_machIdx);
+
+// Assemble the drafting prompt: per-resort content (omni-odin's ai_instructions
+// when present, else the built-in JH default) + the fixed GSB machinery (notes
+// format + JSON schema + calibration) + optional custom rules. Machinery is
+// ALWAYS appended so the JSON parser + escalation gates never break.
+function buildSystemPrompt(resortInstructions, customConfidenceRules) {
+	const content = (resortInstructions && resortInstructions.trim()) ? resortInstructions.trim() : RESORT_CONTENT_DEFAULT;
+	let sp = `${content}
+
+---
+
+${DRAFTING_MACHINERY}`;
+	if (customConfidenceRules && customConfidenceRules.trim()) {
+		sp += `
+
+# Resort-specific confidence rules
+Apply these when self-scoring your confidence (they may lower it and route a draft to human review):
+${customConfidenceRules.trim()}`;
+	}
+	return sp;
+}
+
 // ============ Handlers ============
 
 exports.handler = async (event) => {
@@ -470,7 +499,8 @@ async function processMsMessage(payload) {
 
 	const history = await loadThreadHistory(threadId, { excludeKey: syntheticKey, limit: 6 });
 	const policy = await getAutoSendPolicy();
-	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history, customConfidenceRules: policy.custom_confidence_rules });
+	const resortInstructions = await getResortInstructions();
+	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history, customConfidenceRules: policy.custom_confidence_rules, resortInstructions });
 
 	let status = 'review';
 	if (policy.blocked_categories.includes(draft.category) || draft.needs_human) {
@@ -919,7 +949,7 @@ async function loadThreadHistory(threadId, { excludeKey = null, excludeInboundId
 	return merged;
 }
 
-async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hint, previousDraft, history, customConfidenceRules }) {
+async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hint, previousDraft, history, customConfidenceRules, resortInstructions }) {
 	// Today's date in Mountain Time (resort's local timezone) — drives season-aware logic
 	const todayMT = new Date().toLocaleDateString('en-US', {
 		timeZone: 'America/Denver',
@@ -987,11 +1017,7 @@ async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hi
 	const payload = {
 		model: OPENAI_MODEL,
 		messages: [
-			{ role: 'system', content: (customConfidenceRules && customConfidenceRules.trim()) ? `${SYSTEM_PROMPT}
-
-# Resort-specific confidence rules
-Apply these when self-scoring your confidence (they may lower it and route a draft to human review):
-${customConfidenceRules.trim()}` : SYSTEM_PROMPT },
+			{ role: 'system', content: buildSystemPrompt(resortInstructions, customConfidenceRules) },
 			{ role: 'user', content: userPrompt },
 		],
 		response_format: { type: 'json_object' },
@@ -1111,8 +1137,10 @@ exports.regenerate = async (event) => {
 		const history = await loadThreadHistory(threadId, { excludeInboundId: currentInboundId, limit: 6 });
 
 		const policy = await getAutoSendPolicy();
+		const resortInstructions = await getResortInstructions();
 		const draft = await callOpenAI({
 			resortName: thread.resort_name,
+			resortInstructions,
 			customConfidenceRules: policy.custom_confidence_rules,
 			guestName: thread.guest_name || '',
 			guestEmail: thread.guest_email,
@@ -1249,6 +1277,32 @@ async function getAutoSendPolicy() {
 	} catch (e) {
 		console.error('Failed to load auto_send policy, using defaults:', e.message);
 		return DEFAULTS;
+	}
+}
+
+// Per-resort drafting content from accounts.ai_instructions (the parent+email
+// instructions authored in omni-odin). Returns the string, or null to fall back
+// to the built-in RESORT_CONTENT_DEFAULT. Cached ~60s.
+let _resortInstrCache = { value: undefined, fetchedAt: 0 };
+async function getResortInstructions() {
+	const now = Date.now();
+	if (_resortInstrCache.value !== undefined && now - _resortInstrCache.fetchedAt < 60_000) {
+		return _resortInstrCache.value;
+	}
+	try {
+		const { data, error } = await supabase
+			.from('accounts')
+			.select('ai_instructions')
+			.order('id', { ascending: true })
+			.limit(1)
+			.maybeSingle();
+		if (error) throw error;
+		const v = (data && typeof data.ai_instructions === 'string' && data.ai_instructions.trim().length > 0) ? data.ai_instructions : null;
+		_resortInstrCache = { value: v, fetchedAt: now };
+		return v;
+	} catch (e) {
+		console.error('Failed to load resort instructions, using built-in default:', e.message);
+		return null;
 	}
 }
 
