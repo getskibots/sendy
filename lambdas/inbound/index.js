@@ -35,6 +35,9 @@ const supabase = createClient(
 );
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.5';
+// MULTI-TENANT: single-tenant bot identity today. In a per-bot build, derive the
+// bot from the inbound mailbox/connection instead of a hardcoded id/name.
+// See the "MULTI-TENANT INSERTION POINT" note above SYSTEM_PROMPT below.
 const RESORT_ID = parseInt(process.env.RESORT_ID || '1', 10);
 const RESORT_NAME = process.env.RESORT_NAME || 'Jackson Hole Mountain Resort';
 const FROM_ADDRESS = process.env.FROM_ADDRESS || 'support@getresortmail.com';
@@ -54,6 +57,26 @@ const ALLOWED_CATEGORIES = [
 	'legal_threat', 'medical_issue', 'angry_guest', 'other'
 ];
 
+// ============================================================================
+//  MULTI-TENANT INSERTION POINT  (single-tenant today — Jackson Hole)
+// ----------------------------------------------------------------------------
+//  This Lambda serves ONE bot: the hardcoded SYSTEM_PROMPT below + RESORT_ID /
+//  RESORT_NAME above. To make it per-bot (multi-tenant):
+//
+//    1. Identify the bot from the inbound mailbox / connection (the recipient
+//       address) instead of the hardcoded RESORT_ID.
+//    2. Load THAT bot's content by bot_id from your config store and use it as
+//       the resort content. IMPORTANT: keep the GSB machinery at the END of
+//       SYSTEM_PROMPT — the "OUTPUT FORMAT" JSON schema + "Confidence
+//       Calibration Rules" — appended. The draft parser and escalation logic
+//       depend on that machinery; only the content above it is per-bot.
+//    3. The per-bot READ PATTERN already exists here: see getAutoSendPolicy(),
+//       which reads this account's escalation policy from accounts.instructions.
+//       Extend the same shape, keyed by bot_id, to also carry the content.
+//
+//  Split line: SYSTEM_PROMPT = [resort content] + "---" + [GSB machinery].
+//  A per-bot build swaps the content; the machinery stays fixed.
+// ============================================================================
 const SYSTEM_PROMPT = `# Jackson Hole Mountain Resort — Email Guest Services Virtual Assistant
 
 You are a friendly and professional Virtual Assistant trained to draft 1:1 email replies for Jackson Hole Mountain Resort guests. You provide only current-day resort information with season-aware, guest-friendly responses.
@@ -446,12 +469,13 @@ async function processMsMessage(payload) {
 	}
 
 	const history = await loadThreadHistory(threadId, { excludeKey: syntheticKey, limit: 6 });
-	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history });
+	const policy = await getAutoSendPolicy();
+	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history, customConfidenceRules: policy.custom_confidence_rules });
 
 	let status = 'review';
-	if (BLOCKED_CATEGORIES.includes(draft.category) || draft.needs_human) {
+	if (policy.blocked_categories.includes(draft.category) || draft.needs_human) {
 		status = 'escalated';
-	} else if (draft.confidence >= 0.85) {
+	} else if (draft.confidence >= policy.threshold) {
 		status = 'ready';
 	}
 
@@ -476,7 +500,7 @@ async function processMsMessage(payload) {
 
 	await supabase.from('threads').update({ status }).eq('id', threadId);
 
-	if (BLOCKED_CATEGORIES.includes(draft.category)) {
+	if (policy.blocked_categories.includes(draft.category)) {
 		await supabase.from('escalation_flags').insert({ thread_id: threadId, reason: draft.category, detail: `AI categorized into blocked category. Confidence ${draft.confidence}.`, raised_by: 'ai' });
 	} else if (draft.needs_human) {
 		await supabase.from('escalation_flags').insert({ thread_id: threadId, reason: 'other', detail: 'AI set needs_human=true', raised_by: 'ai' });
@@ -487,9 +511,9 @@ async function processMsMessage(payload) {
 	try {
 		const safeForAuto = (
 			status === 'ready' &&
-			draft.confidence >= 0.85 &&
+			draft.confidence >= policy.threshold &&
 			!draft.needs_human &&
-			!BLOCKED_CATEGORIES.includes(draft.category)
+			!policy.blocked_categories.includes(draft.category)
 		);
 		if (safeForAuto && await isAutoSendEnabled()) {
 			console.log(`Auto-sending (MS) thread=${threadId} (confidence=${draft.confidence})`);
@@ -895,7 +919,7 @@ async function loadThreadHistory(threadId, { excludeKey = null, excludeInboundId
 	return merged;
 }
 
-async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hint, previousDraft, history }) {
+async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hint, previousDraft, history, customConfidenceRules }) {
 	// Today's date in Mountain Time (resort's local timezone) — drives season-aware logic
 	const todayMT = new Date().toLocaleDateString('en-US', {
 		timeZone: 'America/Denver',
@@ -963,7 +987,11 @@ async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hi
 	const payload = {
 		model: OPENAI_MODEL,
 		messages: [
-			{ role: 'system', content: SYSTEM_PROMPT },
+			{ role: 'system', content: (customConfidenceRules && customConfidenceRules.trim()) ? `${SYSTEM_PROMPT}
+
+# Resort-specific confidence rules
+Apply these when self-scoring your confidence (they may lower it and route a draft to human review):
+${customConfidenceRules.trim()}` : SYSTEM_PROMPT },
 			{ role: 'user', content: userPrompt },
 		],
 		response_format: { type: 'json_object' },
@@ -1082,8 +1110,10 @@ exports.regenerate = async (event) => {
 		}
 		const history = await loadThreadHistory(threadId, { excludeInboundId: currentInboundId, limit: 6 });
 
+		const policy = await getAutoSendPolicy();
 		const draft = await callOpenAI({
 			resortName: thread.resort_name,
+			customConfidenceRules: policy.custom_confidence_rules,
 			guestName: thread.guest_name || '',
 			guestEmail: thread.guest_email,
 			subject: thread.subject,
@@ -1094,8 +1124,8 @@ exports.regenerate = async (event) => {
 		});
 
 		let status = 'review';
-		if (BLOCKED_CATEGORIES.includes(draft.category) || draft.needs_human) status = 'escalated';
-		else if (draft.confidence >= 0.85) status = 'ready';
+		if (policy.blocked_categories.includes(draft.category) || draft.needs_human) status = 'escalated';
+		else if (draft.confidence >= policy.threshold) status = 'ready';
 
 		const { data: insertedDraft, error: insertErr } = await supabase
 			.from('drafts')
@@ -1186,6 +1216,39 @@ async function isAutoSendEnabled() {
 	} catch (e) {
 		console.error('Failed to check auto_send_enabled, defaulting to OFF:', e.message);
 		return false;
+	}
+}
+
+// Per-resort escalation policy from accounts.instructions.auto_send (JSONB).
+// Returns { threshold, blocked_categories, custom_confidence_rules }; each field
+// falls back to the hardcoded default when absent/invalid, so behavior is identical
+// to before until a resort saves a policy in omni-odin. Cached ~60s like isAutoSendEnabled.
+let _autoSendPolicyCache = { value: null, fetchedAt: 0 };
+async function getAutoSendPolicy() {
+	const DEFAULTS = { threshold: 0.85, blocked_categories: BLOCKED_CATEGORIES, custom_confidence_rules: '' };
+	const now = Date.now();
+	if (_autoSendPolicyCache.value && now - _autoSendPolicyCache.fetchedAt < 60_000) {
+		return _autoSendPolicyCache.value;
+	}
+	try {
+		const { data, error } = await supabase
+			.from('accounts')
+			.select('instructions')
+			.order('id', { ascending: true })
+			.limit(1)
+			.maybeSingle();
+		if (error) throw error;
+		const a = (data && data.instructions && data.instructions.auto_send) || {};
+		const policy = {
+			threshold: (typeof a.threshold === 'number' && a.threshold >= 0 && a.threshold <= 1) ? a.threshold : DEFAULTS.threshold,
+			blocked_categories: Array.isArray(a.blocked_categories) ? a.blocked_categories : DEFAULTS.blocked_categories,
+			custom_confidence_rules: (typeof a.custom_confidence_rules === 'string') ? a.custom_confidence_rules : DEFAULTS.custom_confidence_rules,
+		};
+		_autoSendPolicyCache = { value: policy, fetchedAt: now };
+		return policy;
+	} catch (e) {
+		console.error('Failed to load auto_send policy, using defaults:', e.message);
+		return DEFAULTS;
 	}
 }
 
