@@ -5,9 +5,7 @@
   "main": "index.js",
   "engines": { "node": ">=18" },
   "dependencies": {
-    "@aws-sdk/client-s3": "*",
     "@aws-sdk/client-sesv2": "*",
-    "@supabase/supabase-js": "*",
-    "mailparser": "*"
+    "@supabase/supabase-js": "*"
   }
 }
