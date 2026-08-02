@@ -209,6 +209,10 @@
 	.search-input input { width: 100%; padding: 9px 12px 9px 32px; font-family: var(--font-ui); font-size: 13px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); }
 	.search-input input:focus { outline: none; border-color: var(--crimson); background: #fff; }
 	.search-input svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; stroke: var(--mute); stroke-width: 2; fill: none; }
+	.list-catfilter { margin-top: 8px; }
+	.list-catfilter select { width: 100%; padding: 7px 10px; font-family: var(--font-ui); font-size: 12px; color: var(--ink-2, inherit); border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); cursor: pointer; }
+	.list-catfilter select:focus { outline: none; border-color: var(--crimson); background: #fff; }
+	.thread-row__cat { display: inline-block; margin-left: 6px; padding: 1px 7px; font-size: 10px; font-weight: 600; color: var(--mute); background: var(--bg-2); border: 1px solid var(--border-2); border-radius: 999px; text-transform: capitalize; vertical-align: 1px; }
 	.list-rows { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
 	.list-rows::-webkit-scrollbar { width: 4px; }
 	.list-rows::-webkit-scrollbar-track { background: transparent; }
@@ -614,7 +618,8 @@
 					<div class="list-search"><div class="search-input">
 						<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
 						<input type="search" id="search" placeholder="Search guest, subject, body…">
-					</div></div>
+					</div>
+					<div class="list-catfilter" id="cat-filter-wrap"><select id="cat-filter" title="Filter by question type"></select></div></div>
 					<div class="perf-filter-banner" id="perf-filter-banner" style="display:none;"></div>
 					<div class="list-rows" id="rows"></div>
 					<div class="list-footer" id="list-footer" style="display:none;"></div>
@@ -828,7 +833,7 @@ function loadConfig() {
 function saveConfig(c) { localStorage.setItem(CONFIG_KEY, JSON.stringify(c)); }
 function clearConfig() { localStorage.removeItem(CONFIG_KEY); }
 
-const state = { config: null, supabase: null, threads: [], drafts: {}, sendLogs: {}, sendLogHistory: [], threadSendLogs: {}, threadInbounds: {}, threadEscalationFlags: {}, activeThreadId: null, activeTab: 'all', perfFilter: null, search: '', dateWindow: '7d' };
+const state = { config: null, supabase: null, threads: [], drafts: {}, sendLogs: {}, sendLogHistory: [], threadSendLogs: {}, threadInbounds: {}, threadEscalationFlags: {}, activeThreadId: null, activeTab: 'all', perfFilter: null, search: '', dateWindow: '7d', preset: null, categoryMeta: {}, catFilter: null };
 const AVATAR_COLORS = ['#0ea5e9','#22c55e','#f59e0b','#ec4899','#8b5cf6','#06b6d4','#f97316','#84cc16','#6366f1'];
 
 function initials(name, email) {
@@ -974,6 +979,55 @@ async function fetchLatestDraftPerThread() {
 		}
 	}
 }
+// ── Vertical preset (accounts.instructions.preset) ─────────────────────────
+// Written by omni-odin when a vertical preset is applied. Gives the inbox the
+// active vertical's question-type taxonomy so category chips read as the
+// business's own labels (e.g. "🛎️ Reservations & Booking" for a hotel) and the
+// list can filter by question type. Absent → ski-era keys prettified as before.
+function applyPresetConfig(preset) {
+	state.preset = (preset && typeof preset === 'object' && Array.isArray(preset.categories)) ? preset : null;
+	state.categoryMeta = {};
+	if (state.preset) {
+		for (const c of state.preset.categories) {
+			if (c && typeof c.key === 'string') {
+				const key = c.key.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+				if (key) state.categoryMeta[key] = { label: c.label || key.replace(/_/g, ' '), emoji: c.emoji || '' };
+			}
+		}
+	}
+	renderCatFilter();
+}
+function catLabel(key) {
+	const m = state.categoryMeta[key];
+	return m ? m.label : (key || '').replace(/_/g, ' ');
+}
+function catChipText(key) {
+	const m = state.categoryMeta[key];
+	return m && m.emoji ? `${m.emoji} ${m.label}` : catLabel(key);
+}
+function renderCatFilter() {
+	const wrap = document.getElementById('cat-filter-wrap');
+	const sel = document.getElementById('cat-filter');
+	if (!wrap || !sel) return;
+	const universal = ['general_question', 'group_booking', 'lost_and_found', 'refund_request', 'complaint', 'safety_issue', 'legal_threat', 'medical_issue', 'angry_guest', 'other'];
+	const vertical = state.preset ? Object.keys(state.categoryMeta) : [];
+	const verticalName = state.preset ? `${state.preset.emoji ? state.preset.emoji + ' ' : ''}${state.preset.label || state.preset.id || ''}`.trim() : '';
+	let html = `<option value="">${verticalName ? esc(verticalName) + ' · all question types' : 'All question types'}</option>`;
+	for (const key of vertical) html += `<option value="${esc(key)}">${esc(catChipText(key))}</option>`;
+	for (const key of universal) {
+		if (state.categoryMeta[key]) continue;
+		html += `<option value="${esc(key)}">${esc(key.replace(/_/g, ' '))}</option>`;
+	}
+	sel.innerHTML = html;
+	sel.value = state.catFilter || '';
+}
+async function onCatFilterChange(value) {
+	state.catFilter = value || null;
+	// Filtering needs the latest draft per thread (that's where category lives)
+	if (state.catFilter) await fetchLatestDraftPerThread();
+	renderRows();
+}
+
 async function updateThread(id, patch) { const { error } = await state.supabase.from('threads').update(patch).eq('id', id); if (error) throw error; }
 async function updateDraft(id, patch) { const { error } = await state.supabase.from('drafts').update(patch).eq('id', id); if (error) throw error; }
 async function insertFlag(threadId, reason, detail) { const { error } = await state.supabase.from('escalation_flags').insert({ thread_id: threadId, reason, detail, raised_by: 'staff' }); if (error) throw error; }
@@ -1008,6 +1062,11 @@ function filteredThreads() {
 				if (!(log && /^manual:/.test(log.sent_by || ''))) return false;
 			}
 			// 'confidence' shows all threads, sort handled below
+		}
+		// Question-type filter: matches on the latest draft's category
+		if (state.catFilter) {
+			const d = state.drafts[t.id] && state.drafts[t.id][0];
+			if (!d || d.category !== state.catFilter) return false;
 		}
 		if (!q) return true;
 		return ((t.guest_name || '') + ' ' + (t.guest_email || '') + ' ' + (t.subject || '') + ' ' + (t.body_text || '')).toLowerCase().includes(q);
@@ -1096,7 +1155,7 @@ function renderRows() {
 					<div class="thread-row__top"><span class="thread-row__name">${esc(t.guest_name || t.guest_email)}</span><span class="thread-row__time">${relTime(t.last_inbound_at)}${agingBadge(t.last_inbound_at, t.status)}</span></div>
 					<div class="thread-row__subject">${esc(t.subject)}</div>
 					<div class="thread-row__snippet">${esc(snippet)}</div>
-					<span class="thread-row__pill thread-row__pill--${pill}">${pillLabel}</span>
+					<span class="thread-row__pill thread-row__pill--${pill}">${pillLabel}</span>${(() => { const d = state.drafts[t.id] && state.drafts[t.id][0]; return d && d.category ? `<span class="thread-row__cat">${esc(catChipText(d.category))}</span>` : ''; })()}
 				</div>
 				<button class="thread-row__delete" data-delete-id="${t.id}" title="Delete thread"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
 				${sentIndicator || (dot ? `<div class="thread-row__dot thread-row__dot--${dot}"></div>` : '')}
@@ -1279,7 +1338,7 @@ function wirePerfDrawer() {
 
 function bannerFor(draft, t) {
 	if (!draft) return { cls: 'ai-banner--low', html: '<strong>No draft yet.</strong> The AI may still be working — check back in a moment.' };
-	if (SAFETY.BLOCKED_CATEGORIES.includes(draft.category)) return { cls: 'ai-banner--blocked', html: `<strong>AI detected:</strong> Categorized as <strong>${esc(draft.category.replace('_',' '))}</strong>. Human approval required regardless of confidence.` };
+	if (SAFETY.BLOCKED_CATEGORIES.includes(draft.category)) return { cls: 'ai-banner--blocked', html: `<strong>AI detected:</strong> Categorized as <strong>${esc(catLabel(draft.category))}</strong>. Human approval required regardless of confidence.` };
 	if (draft.needs_human) return { cls: 'ai-banner--low', html: `<strong>AI flagged for human review.</strong> Confidence: ${Math.round(draft.confidence*100)}%.` };
 	if (draft.confidence < SAFETY.MIN_CONFIDENCE) return { cls: 'ai-banner--low', html: `<strong>AI drafted</strong> with ${Math.round(draft.confidence*100)}% confidence — below 85% threshold. Review before sending.` };
 	const sendLog = t && state.sendLogs[t.id];
@@ -1528,7 +1587,7 @@ async function renderDetail() {
 			<div class="draft-section__header">
 				<div class="draft-section__title"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0l2.5 7.5L22 10l-7.5 2.5L12 20l-2.5-7.5L2 10l7.5-2.5z"/></svg>AI-drafted reply</div>
 				<div class="draft-meta">
-					<span class="draft-chip draft-chip--cat">${esc(draft.category.replace('_',' '))}</span>
+					<span class="draft-chip draft-chip--cat" title="Question type${state.preset && (state.preset.label || state.preset.id) ? ' · ' + esc(state.preset.label || state.preset.id) + ' preset' : ''}">${esc(catChipText(draft.category))}</span>
 					<span class="draft-chip ${confCls}">${Math.round(draft.confidence*100)}% confidence</span>
 					${draft.needs_human ? '<span class="draft-chip draft-chip--human">needs human</span>' : ''}
 				</div>
@@ -2131,14 +2190,17 @@ async function initialize() {
 		startRealtime();
 		// Hydrate the auto-send pill from system_settings
 		try { renderAutoSendPill(await fetchAutoSend()); } catch (e) { console.error('Pill hydration failed:', e); }
-		// Hydrate resort email address for empty state hint
+		// Hydrate resort email address (empty state hint) + vertical preset taxonomy
 		try {
-			const { data: acct } = await state.supabase.from('accounts').select('email_address').order('id', { ascending: true }).limit(1).single();
+			const { data: acct } = await state.supabase.from('accounts').select('email_address, instructions').order('id', { ascending: true }).limit(1).single();
 			if (acct?.email_address) {
 				const el = document.getElementById('emptyStateEmail');
 				if (el) el.textContent = acct.email_address;
 			}
-		} catch (e) { /* offline */ }
+			applyPresetConfig(acct?.instructions?.preset || null);
+			renderRows(); // re-label any category chips already rendered
+		} catch (e) { applyPresetConfig(null); /* offline */ }
+		document.getElementById('cat-filter')?.addEventListener('change', (e) => onCatFilterChange(e.target.value));
 	} catch (e) {
 		console.error(e); setConn('error', 'Connection failed');
 		showToast('Connection failed: ' + (e.message || 'check config'), true);

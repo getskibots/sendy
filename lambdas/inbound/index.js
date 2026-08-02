@@ -50,12 +50,29 @@ const BLOCKED_CATEGORIES = [
 	'legal_threat', 'medical_issue', 'angry_guest'
 ];
 
-const ALLOWED_CATEGORIES = [
-	'general_question', 'lift_tickets', 'lodging', 'lessons', 'rentals',
-	'hours_operations', 'weather_conditions', 'lost_and_found', 'season_passes',
-	'group_booking', 'refund_request', 'complaint', 'safety_issue',
+// Universal categories exist for EVERY vertical. The six sensitive ones are
+// load-bearing: the escalation gates and the Confidence Calibration Rules in
+// the drafting machinery reference them by name, so they never vary by preset.
+const UNIVERSAL_CATEGORIES = [
+	'general_question', 'group_booking', 'lost_and_found',
+	'refund_request', 'complaint', 'safety_issue',
 	'legal_threat', 'medical_issue', 'angry_guest', 'other'
 ];
+
+// Built-in ski taxonomy — the vertical layer used when no preset is configured
+// in accounts.instructions.preset, so a bare install behaves as before.
+const DEFAULT_VERTICAL_CATEGORIES = [
+	'lift_tickets', 'lodging', 'lessons', 'rentals',
+	'hours_operations', 'weather_conditions', 'season_passes',
+	'partner_passes', 'military_veteran', 'events', 'dining', 'transportation'
+];
+
+// The category universe for one classification run: the active vertical's
+// question types (preset-supplied, else the ski default) + the universal set.
+function allowedCategories(preset) {
+	const vertical = preset ? preset.categories.map((c) => c.key) : DEFAULT_VERTICAL_CATEGORIES;
+	return [...vertical, ...UNIVERSAL_CATEGORIES];
+}
 
 // ============================================================================
 //  MULTI-TENANT INSERTION POINT  (single-tenant today — Jackson Hole)
@@ -371,13 +388,35 @@ const DRAFTING_MACHINERY = SYSTEM_PROMPT.slice(_machIdx);
 // when present, else the built-in JH default) + the fixed GSB machinery (notes
 // format + JSON schema + calibration) + optional custom rules. Machinery is
 // ALWAYS appended so the JSON parser + escalation gates never break.
-function buildSystemPrompt(resortInstructions, customConfidenceRules) {
+//
+// When a vertical preset is active (accounts.instructions.preset), the
+// machinery's category enum is rewritten to that vertical's question types and
+// a taxonomy guide is inserted, so enrichment classifies a hotel's email
+// against hotel question types instead of the ski defaults.
+function buildSystemPrompt(resortInstructions, customConfidenceRules, preset) {
 	const content = (resortInstructions && resortInstructions.trim()) ? resortInstructions.trim() : RESORT_CONTENT_DEFAULT;
+	let machinery = DRAFTING_MACHINERY.replace(
+		/"category": one of \[[^\]]*\]/,
+		`"category": one of [${allowedCategories(preset).join(', ')}]`
+	);
+	if (preset) {
+		const business = preset.label || preset.id || 'this business';
+		const guide = preset.categories.map((c) => `- \`${c.key}\` — ${c.label}`).join('\n');
+		machinery = machinery.replace('## OUTPUT FORMAT', `## Question-Type Taxonomy (${business})
+
+Classify each inbound email into the single best-fitting \`category\`. Prefer a business-specific question type when one fits:
+
+${guide}
+
+Universal types (any business) when none of the above fit: ${UNIVERSAL_CATEGORIES.join(', ')}. Sensitive situations (refunds, complaints, safety, legal, medical, angry guests) ALWAYS take their sensitive category, even when a business-specific type also fits.
+
+## OUTPUT FORMAT`);
+	}
 	let sp = `${content}
 
 ---
 
-${DRAFTING_MACHINERY}`;
+${machinery}`;
 	if (customConfidenceRules && customConfidenceRules.trim()) {
 		sp += `
 
@@ -500,7 +539,8 @@ async function processMsMessage(payload) {
 	const history = await loadThreadHistory(threadId, { excludeKey: syntheticKey, limit: 6 });
 	const policy = await getAutoSendPolicy();
 	const resortInstructions = await getResortInstructions();
-	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history, customConfidenceRules: policy.custom_confidence_rules, resortInstructions });
+	const preset = await getPresetConfig();
+	const draft = await callOpenAI({ resortName: RESORT_NAME, guestName, guestEmail, subject, body: bodyText, history, customConfidenceRules: policy.custom_confidence_rules, resortInstructions, preset });
 
 	let status = 'review';
 	if (policy.blocked_categories.includes(draft.category) || draft.needs_human) {
@@ -949,7 +989,7 @@ async function loadThreadHistory(threadId, { excludeKey = null, excludeInboundId
 	return merged;
 }
 
-async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hint, previousDraft, history, customConfidenceRules, resortInstructions }) {
+async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hint, previousDraft, history, customConfidenceRules, resortInstructions, preset }) {
 	// Today's date in Mountain Time (resort's local timezone) — drives season-aware logic
 	const todayMT = new Date().toLocaleDateString('en-US', {
 		timeZone: 'America/Denver',
@@ -1017,7 +1057,7 @@ async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hi
 	const payload = {
 		model: OPENAI_MODEL,
 		messages: [
-			{ role: 'system', content: buildSystemPrompt(resortInstructions, customConfidenceRules) },
+			{ role: 'system', content: buildSystemPrompt(resortInstructions, customConfidenceRules, preset) },
 			{ role: 'user', content: userPrompt },
 		],
 		response_format: { type: 'json_object' },
@@ -1048,11 +1088,11 @@ async function callOpenAI({ resortName, guestName, guestEmail, subject, body, hi
 		throw new Error('OpenAI returned non-JSON: ' + content.slice(0, 200));
 	}
 
-	return normalize(parsed, content);
+	return normalize(parsed, content, allowedCategories(preset));
 }
 
-function normalize(d, raw) {
-	const category = ALLOWED_CATEGORIES.includes((d.category || '').toLowerCase())
+function normalize(d, raw, allowed) {
+	const category = (allowed || allowedCategories(null)).includes((d.category || '').toLowerCase())
 		? d.category.toLowerCase()
 		: 'other';
 
@@ -1138,10 +1178,12 @@ exports.regenerate = async (event) => {
 
 		const policy = await getAutoSendPolicy();
 		const resortInstructions = await getResortInstructions();
+		const preset = await getPresetConfig();
 		const draft = await callOpenAI({
 			resortName: thread.resort_name,
 			resortInstructions,
 			customConfidenceRules: policy.custom_confidence_rules,
+			preset,
 			guestName: thread.guest_name || '',
 			guestEmail: thread.guest_email,
 			subject: thread.subject,
@@ -1278,6 +1320,62 @@ async function getAutoSendPolicy() {
 		console.error('Failed to load auto_send policy, using defaults:', e.message);
 		return DEFAULTS;
 	}
+}
+
+// Per-resort vertical preset from accounts.instructions.preset (JSONB) — written
+// by omni-odin when a vertical preset is applied (Settings → General). Carries
+// the vertical's identity + its question-type taxonomy so enrichment classifies
+// against the RIGHT vertical (hotel question types for a hotel, not ski).
+// Shape: { id, label, emoji, version, categories: [{ key, label, emoji? }] }
+// Returns null when absent/invalid → the built-in ski taxonomy applies, so
+// behavior is identical to before until a preset is saved. Cached ~60s.
+let _presetCache = { value: undefined, fetchedAt: 0 };
+async function getPresetConfig() {
+	const now = Date.now();
+	if (_presetCache.value !== undefined && now - _presetCache.fetchedAt < 60_000) {
+		return _presetCache.value;
+	}
+	try {
+		const { data, error } = await supabase
+			.from('accounts')
+			.select('instructions')
+			.order('id', { ascending: true })
+			.limit(1)
+			.maybeSingle();
+		if (error) throw error;
+		const value = normalizePreset(data && data.instructions && data.instructions.preset);
+		_presetCache = { value, fetchedAt: now };
+		return value;
+	} catch (e) {
+		console.error('Failed to load preset config, using default taxonomy:', e.message);
+		return null;
+	}
+}
+
+// Sanitize an instructions.preset blob into the shape the prompt builder needs.
+// Category keys are lowercased snake_case; duplicates of the universal set are
+// dropped (the universal categories always ship, preset or not).
+function normalizePreset(p) {
+	if (!p || typeof p !== 'object' || !Array.isArray(p.categories)) return null;
+	const seen = new Set(UNIVERSAL_CATEGORIES);
+	const categories = [];
+	for (const c of p.categories) {
+		if (!c || typeof c.key !== 'string') continue;
+		const key = c.key.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+		if (!key || seen.has(key)) continue;
+		seen.add(key);
+		categories.push({
+			key,
+			label: (typeof c.label === 'string' && c.label.trim()) ? c.label.trim() : key.replace(/_/g, ' '),
+		});
+	}
+	if (categories.length === 0) return null;
+	return {
+		id: typeof p.id === 'string' ? p.id : '',
+		label: typeof p.label === 'string' ? p.label : '',
+		version: typeof p.version === 'string' ? p.version : '',
+		categories,
+	};
 }
 
 // Per-resort drafting content from accounts.ai_instructions (the parent+email
